@@ -1,0 +1,75 @@
+[project]
+name = "neurogenesis-napari"
+version = "0.1.0a1"
+description = "A napari plugin to segment and classify cells."
+authors = [{name = "TUM.ai", email = "contact@tum-ai.com"}]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {file = "LICENSE"}
+# TODO: maintainers = []
+# TODO: keywords = []
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Framework :: napari",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+]
+dependencies = [
+    "napari[pyqt5]",
+    "numpy==1.26.4",
+    "magicgui",
+    "qtpy",
+    "scikit-image==0.25.2",
+    "opencv-python==4.11.0.86",
+    "torch==2.7.1",
+    "cellpose==3.1.1.2",
+    "pandas==2.3.0",
+    "sam2==1.1.0",
+    "scikit-learn==1.2.2",
+    "napari-czifile2",
+    "tifffile<=2023.4.12",
+    "huggingface_hub>=0.33.0"
+]
+
+[project.urls]
+Repository = "https://github.com/tum-ai/neurogenesis_napari"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "black>=25.1.0",
+    "ruff>=0.12.0",
+    "pre-commit>=4.2.0",
+]
+
+[project.entry-points."napari.manifest"]
+neurogenesis-napari = "neurogenesis_napari:napari.yaml"
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+  "src/neurogenesis_napari",
+  "README.md",
+  "LICENSE",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/neurogenesis_napari"]
+include = [
+    "LICENSE",
+    "README.md",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 100

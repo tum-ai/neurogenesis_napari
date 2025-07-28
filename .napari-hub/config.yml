@@ -1,0 +1,52 @@
+# ── napari-hub configuration ───────────────────────────────────────────
+# This file customises how the plugin is displayed on https://napari-hub.org
+# All keys are optional; anything you omit will fall back to the values
+# taken from your package metadata (pyproject.toml / setup.cfg / setup.py).
+# See the hub wiki for the full spec:
+# https://github.com/chanzuckerberg/napari-hub/wiki/napari-hub-Plugin-Configuration#configyml
+
+# ─ Basic identity ─────────────────────────────────────────────────────
+display_name: TumAI Histology Toolkit
+summary: |
+  One-click colour normalisation, denoising and Cellpose-based nuclear
+  segmentation for bright-field or fluorescent histology images.
+authors:
+  - name: Jane Doe
+    email: jane.doe@tum.de
+    affiliation: Technical University of Munich
+    github: janedoe            # optional
+# Additional authors can be added as a list
+
+license: MIT                   # ← keep in sync with your package metadata
+development_status: Alpha      # One of: Planning | Pre-Alpha | Alpha | Beta | Stable | Mature | Inactive
+
+# ─ Categorisation on napari-hub ────────────────────────────────────────
+categories:                     # Choose any that apply
+  - Segmentation
+  - Filtering & Denoising
+  - Registration & Normalisation
+keywords:
+  - cellpose
+  - nuclei
+  - histology
+  - microscopy
+  - colour normalisation
+
+# ─ Optional overrides / extras ─────────────────────────────────────────
+readme: DESCRIPTION.md          # Use the custom description below
+project_urls:
+  Source Code: https://github.com/your-org/tumai-napari
+  Issue Tracker: https://github.com/your-org/tumai-napari/issues
+  Documentation: https://your-org.github.io/tumai-napari
+python_requires: ">=3.9"
+
+# Upload a square PNG/SVG and reference it here to show a logo on the hub
+# logo: assets/logo.png
+
+# Supported operating systems shown on the hub cards
+works_with:
+  - Linux
+  - macOS
+  - Windows
+
+# End of file

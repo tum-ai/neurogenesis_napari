@@ -1,0 +1,35 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-docstring-first
+        files: ^src/
+      - id: end-of-file-fixer
+        files: ^src/
+      - id: trailing-whitespace
+        files: ^src/
+        exclude: ^\.napari-hub/.*
+      - id: check-yaml # checks for correct yaml syntax for github actions ex.
+        files: ^src/
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.0
+    hooks:
+    - id: ruff
+      files: ^src/
+      exclude: ^src/neurogenesis_napari/segmentation/
+      args: [--fix]
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        files: ^src/
+  - repo: https://github.com/tlambert03/napari-plugin-checks
+    rev: v0.3.0
+    hooks:
+      - id: napari-plugin-checks
+  # https://mypy.readthedocs.io/en/stable/
+  # you may wish to add this as well!
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.9.0
+  #   hooks:
+  #     - id: mypy
