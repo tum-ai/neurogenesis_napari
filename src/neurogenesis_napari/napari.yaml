@@ -1,0 +1,20 @@
+name: neurogenesis-napari
+display_name: TUM.ai + Helmholtz
+contributions:
+  commands:
+    - id: neurogenesis-napari.normalize_and_denoise_widget
+      title: Normalize and Denoise
+      python_name: neurogenesis_napari.widgets.normalize_and_denoise:normalize_and_denoise_widget
+    - id: neurogenesis-napari.segment_dapi_widget
+      title: Segment
+      python_name: neurogenesis_napari.widgets.segment:segment_widget
+    - id: neurogenesis-napari.classify_widget
+      title: Segment and Classify
+      python_name: neurogenesis_napari.widgets.segment_and_classify:segment_and_classify_widget
+  widgets:
+    - command: neurogenesis-napari.normalize_and_denoise_widget
+      display_name: Normalize and Denoise
+    - command: neurogenesis-napari.segment_dapi_widget
+      display_name: Segment
+    - command: neurogenesis-napari.classify_widget
+      display_name: Segment and Classify
