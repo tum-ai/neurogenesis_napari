@@ -111,8 +111,8 @@ def test_segment_widget(img: Image) -> None:
         assert (layer.translate == img.translate[-2:]).all()
 
         if i == 0:  # Pred mask layer
-            assert layer.data == img.metadata["segmentation"]["masks"]
+            assert (layer.data == img.metadata["segmentation"]["masks"]).all()
         elif i == 1:  # Centroids
-            assert layer.data == img.metadata["segmentation"]["centroids"]
+            assert (layer.data == img.metadata["segmentation"]["centroids"]).all()
         else:  # Bboxes
-            assert layer.data == img.metadata["segmentation"]["bounding_boxes"]
+            assert (layer.data == img.metadata["segmentation"]["bounding_boxes"]).all()

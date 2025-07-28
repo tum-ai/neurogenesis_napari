@@ -1,4 +1,4 @@
-# TUMai Helmholtz Napari Plugin
+# TUMai Helmholtz Neurogenesis Napari Plugin
 
 [![License MIT](https://img.shields.io/pypi/l/neurogenesis-napari.svg?color=green)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/neurogenesis-napari.svg?color=green)](https://pypi.org/project/neurogenesis-napari)
