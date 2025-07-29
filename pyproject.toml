@@ -54,10 +54,10 @@ dev = [
 neurogenesis-napari = "neurogenesis_napari:napari.yaml"
 
 [tool.hatch.build.targets.sdist]
-only-include = [
-  "src/neurogenesis_napari",
-  "README.md",
-  "LICENSE",
+packages = ["src/neurogenesis_napari"]
+include = [
+    "LICENSE",
+    "README.md",
 ]
 
 [tool.hatch.build.targets.wheel]
