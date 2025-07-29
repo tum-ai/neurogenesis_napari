@@ -28,5 +28,15 @@ jobs:
           pip --version
           pip install -e . --group dev
 
-      - name: Run tests
-        run: pytest tests/
+      - name: Run tests (Linux with Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pytest -ra tests/
+        env:
+          QT_API: pyqt5
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Run tests (non-Linux)
+        if: runner.os != 'Linux'
+        run: pytest -ra tests/
+        env:
+          QT_API: pyqt5
