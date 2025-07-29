@@ -1,6 +1,6 @@
 [project]
 name = "neurogenesis-napari"
-version = "0.1.0a1"
+version = ""0.1.0a1.post1""
 description = "A napari plugin to segment and classify cells."
 authors = [{name = "TUM.ai", email = "contact@tum-ai.com"}]
 requires-python = ">=3.10"
@@ -53,18 +53,15 @@ dev = [
 [project.entry-points."napari.manifest"]
 neurogenesis-napari = "neurogenesis_napari:napari.yaml"
 
-[tool.hatch.build.targets.sdist]
-packages = ["src/neurogenesis_napari"]
-include = [
-    "LICENSE",
-    "README.md",
-]
+[tool.hatch.build]
+sources = ["src"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/neurogenesis_napari"]
+[tool.hatch.build.targets.sdist]
 include = [
-    "LICENSE",
-    "README.md",
+    "/src",
+    "/LICENSE", 
+    "/README.md",
+    "/pyproject.toml"
 ]
 
 [build-system]
