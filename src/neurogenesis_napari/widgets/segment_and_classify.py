@@ -5,23 +5,28 @@ import cv2
 import numpy as np
 import torch
 from magicgui import magic_factory
+from napari import Viewer
 from napari.layers import Image, Layer, Shapes
 from napari.utils.notifications import (
-    Notification,
-    show_console_notification,
     show_warning,
+    show_error,
 )
 from sklearn.neighbors import NearestCentroid
 
-from neurogenesis_napari._utils import ensure_weights, get_gray_img, get_weight_path
+from neurogenesis_napari._utils import (
+    ensure_weights,
+    get_gray_img,
+    get_weight_path,
+    setup_cellpose_log_panel,
+)
 from neurogenesis_napari.classification.representation_based.vae import (
     VAE,
     generate_latent_representation,
 )
 from neurogenesis_napari.segmentation.cs import crop_from_bbox, enlarge_bbox
 from neurogenesis_napari.widgets.segment import (
-    _get_bounding_boxes,
     _get_segmentation_layers,
+    _segment_async,
 )
 
 PALETTE = {
@@ -92,15 +97,73 @@ def crop_stack_resize(
     return np.stack(crops, -1).transpose(2, 0, 1)
 
 
+def classify(
+    DAPI: np.ndarray,
+    BF: np.ndarray,
+    Tuj1: np.ndarray,
+    RFP: np.ndarray,
+    bounding_boxes: list[np.ndarray],
+) -> list[Layer]:
+    """Classify nuclei *polygons* into cell types and return per-class shape layers.
+
+    Args:
+        DAPI (np.ndarray): DAPI channel.
+        Tuj1 (np.ndarray): β‑III‑tubulin channel.
+        RFP (np.ndarray):  RFP channel.
+        BF (np.ndarray):   Bright‑field channel.
+        bounding_boxes (list[np.ndarray]): List of nucleus polygons in pixel coordinates.
+
+    Returns:
+        A list of layers (one per predicted class) containing the corresponding polygons.
+    """
+
+    def prep(layer: Image) -> np.ndarray:
+        return cv2.normalize(get_gray_img(layer), None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F)
+
+    chans = tuple(map(prep, (DAPI, BF, Tuj1, RFP)))
+
+    vae, clf = load_models(
+        str(get_weight_path("vae", "TL_FT_bigvae3.pth")),
+        str(get_weight_path("classifier", "NearestCentroid.pkl")),
+    )
+
+    bboxes_by_pred = {pred: [] for pred in PALETTE}
+
+    for bbox in bounding_boxes:
+        patch = crop_stack_resize(chans, bbox)
+        pred = classify_patch(patch, vae, clf)
+        bboxes_by_pred[pred].append(bbox)
+
+    classification_layers = [
+        Shapes(
+            data=bboxes,
+            name=f"{len(bboxes)}_{pred}s",
+            shape_type="polygon",
+            edge_color=PALETTE[pred],
+            face_color=[0, 0, 0, 0],
+            edge_width=4,
+            scale=DAPI.scale[-2:],
+            translate=DAPI.translate[-2:],
+        )
+        for pred, bboxes in bboxes_by_pred.items()
+        if bboxes
+    ]
+
+    return classification_layers
+
+
 @magic_factory(
     call_button="Segment + Classify",
 )
 def segment_and_classify_widget(
+    viewer: Viewer,
     DAPI: Image | None = None,
     Tuj1: Image | None = None,
     RFP: Image | None = None,
     BF: Image | None = None,
     reuse_cached_segmentation: bool = True,
+    gpu: bool = False,
+    model_type: str = "cyto3",
 ) -> list[Layer]:
     """Segment nuclei and classify every detected cell in one click.
 
@@ -142,19 +205,29 @@ def segment_and_classify_widget(
     seg = DAPI.metadata.get("segmentation")
 
     if reuse_cached_segmentation and seg is not None:
-        pred_masks = seg["masks"]
-        centroids = seg["centroids"]
         bounding_boxes = seg["bounding_boxes"]
-        segmentation_layers = []  # User already has these
 
-    else:
-        dapi_gray = get_gray_img(DAPI)
+        if not bounding_boxes:
+            show_warning("No nuclei detected → nothing to classify.")
+            return []
 
-        show_console_notification(
-            Notification("Cell segmentation could take a few moments.", severity="INFO")
-        )
+        classification_layers = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
+        return classification_layers  # User already has segmentation layers
 
-        pred_masks, centroids, bounding_boxes = _get_bounding_boxes(dapi_gray)
+    dapi_gray = get_gray_img(DAPI)
+
+    dock_panel_key = "segment_classify_widget"
+    setup_cellpose_log_panel(
+        viewer, panel_key=dock_panel_key, dock_title="Cellpose logs - Segment + Classify"
+    )
+    worker = _segment_async(dapi_gray, gpu, model_type, dock_panel_key)
+
+    def _on_done(result) -> None:
+        pred_masks, centroids, bounding_boxes = result
+
+        if not bounding_boxes:
+            show_warning("No nuclei detected → nothing to classify.")
+            return []
 
         DAPI.metadata["segmentation"] = {
             "masks": pred_masks,
@@ -163,41 +236,12 @@ def segment_and_classify_widget(
         }
 
         segmentation_layers = _get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
+        classification_layers = classify(DAPI, BF, Tuj1, RFP)
+        for layer in segmentation_layers + classification_layers:
+            viewer.add_layer(layer)
 
-    if not bounding_boxes:
-        show_warning("No nuclei detected → nothing to classify.")
-        return []
+    worker.returned.connect(_on_done)
+    worker.errored.connect(lambda e: show_error(f"Cellpose failed: {e}"))
+    worker.start()
 
-    def prep(layer: Image) -> np.ndarray:
-        return cv2.normalize(get_gray_img(layer), None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F)
-
-    chans = tuple(map(prep, (DAPI, BF, Tuj1, RFP)))
-
-    vae, clf = load_models(
-        str(get_weight_path("vae", "TL_FT_bigvae3.pth")),
-        str(get_weight_path("classifier", "NearestCentroid.pkl")),
-    )
-
-    bboxes_by_pred = {pred: [] for pred in PALETTE}
-
-    for bbox in bounding_boxes:
-        patch = crop_stack_resize(chans, bbox)
-        pred = classify_patch(patch, vae, clf)
-        bboxes_by_pred[pred].append(bbox)
-
-    classification_layers = [
-        Shapes(
-            data=bboxes,
-            name=f"{len(bboxes)}_{pred}s",
-            shape_type="polygon",
-            edge_color=PALETTE[pred],
-            face_color=[0, 0, 0, 0],
-            edge_width=4,
-            scale=DAPI.scale[-2:],
-            translate=DAPI.translate[-2:],
-        )
-        for pred, bboxes in bboxes_by_pred.items()
-        if bboxes
-    ]
-
-    return segmentation_layers + classification_layers
+    return []
