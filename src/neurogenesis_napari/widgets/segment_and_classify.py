@@ -5,7 +5,7 @@ from typing import List
 import cv2
 import numpy as np
 import torch
-from magicgui import magic_factory, magicgui
+from magicgui import magic_factory
 from napari import Viewer
 from napari.layers import Image, Layer, Shapes
 from napari.utils.notifications import (
@@ -29,6 +29,7 @@ from neurogenesis_napari.widgets.segment import (
     _get_segmentation_layers,
     _segment_async,
 )
+from neurogenesis_napari.widgets._edit_prediction import attach_edit_widget
 
 PALETTE = {
     "Astrocyte": "magenta",
@@ -37,7 +38,8 @@ PALETTE = {
     "OPC": "lime",
 }
 IDX2LBL = {0: "Astrocyte", 1: "Dead Cell", 2: "Neuron", 3: "OPC"}
-CLASSES = list(PALETTE)
+PREDICTION_LAYER_NAME = "Predictions"
+CLASSIFY_WIDGET_PANEL_KEY = "segment_classify_widget"
 
 
 @lru_cache
@@ -105,18 +107,18 @@ def classify(
     Tuj1: np.ndarray,
     RFP: np.ndarray,
     bounding_boxes: List[np.ndarray],
-) -> List[Layer]:
+) -> Layer:
     """Classify nuclei *polygons* into cell types and return per-class shape layers.
 
     Args:
         DAPI (np.ndarray): DAPI channel.
         Tuj1 (np.ndarray): β‑III‑tubulin channel.
-        RFP (np.ndarray):  RFP channel.
-        BF (np.ndarray):   Bright‑field channel.
+        RFP (np.ndarray): RFP channel.
+        BF (np.ndarray): Bright‑field channel.
         bounding_boxes (List[np.ndarray]): List of nucleus polygons in pixel coordinates.
 
     Returns:
-        A list of layers (one per predicted class) containing the corresponding polygons.
+        A layer containing all prediction polygons.
     """
 
     def prep(layer: Image) -> np.ndarray:
@@ -140,12 +142,13 @@ def classify(
         data=bounding_boxes,
         shape_type="polygon",
         properties={"label": labels},
-        name="Predictions",
+        name=PREDICTION_LAYER_NAME,
         edge_width=4,
         face_color=[0, 0, 0, 0],
         scale=DAPI.scale[-2:],
         translate=DAPI.translate[-2:],
         edge_color="label",
+        # TODO: non-determinstic color assignment
         edge_color_cycle=list(PALETTE.values()),
         text={
             "text": "{label}",
@@ -155,58 +158,7 @@ def classify(
         },
     )
 
-    return [layer]
-
-
-def _set_label(layer: Shapes, label: str):
-    sel = list(layer.selected_data)
-    if not sel:
-        show_warning("Select one or more cell polygons first.")
-        return
-    for idx in sel:
-        layer.properties["label"][idx] = label
-        layer.text.values[idx] = label
-    layer.refresh()
-
-
-def add_label_hotkeys(layer: Shapes):
-    @layer.bind_key("1")
-    def _1(event=None):
-        _set_label(layer, "Astrocyte")
-
-    @layer.bind_key("2")
-    def _2(event=None):
-        _set_label(layer, "Dead Cell")
-
-    @layer.bind_key("3")
-    def _3(event=None):
-        _set_label(layer, "Neuron")
-
-    @layer.bind_key("4")
-    def _4(event=None):
-        _set_label(layer, "OPC")
-
-
-def attach_edit_widget(viewer: Viewer, layer: Shapes) -> None:
-    @magicgui(
-        class_label={"widget_type": "ComboBox", "choices": CLASSES},
-        call_button="Apply",
-        persist=True,
-        auto_call=False,
-    )
-    def edit_label(class_label: str = "Neuron"):
-        _set_label(layer, class_label)
-
-    # keep dropdown synced with current selection
-    def _sync_dropdown(event=None):
-        sel = list(layer.selected_data)
-        if sel:
-            edit_label.class_label.value = layer.properties["label"][sel[0]]
-
-    layer.events.connect(_sync_dropdown)
-    viewer.window.add_dock_widget(edit_label, area="right", name="Edit cell label")
-
-    add_label_hotkeys(layer)
+    return layer
 
 
 @magic_factory(
@@ -221,7 +173,7 @@ def segment_and_classify_widget(
     reuse_cached_segmentation: bool = True,
     gpu: bool = False,
     model_type: str = "cyto3",
-) -> List[Layer]:
+) -> None:
     """Segment nuclei and classify every detected cell in one click.
 
     Workflow
@@ -236,12 +188,12 @@ def segment_and_classify_widget(
     Args:
         DAPI: DAPI channel.
         Tuj1: β‑III‑tubulin channel.
-        RFP:  RFP channel.
-        BF:   Bright‑field channel.
+        RFP: RFP channel.
+        BF: Bright‑field channel.
         reuse_cached_segmentation (bool: = True): Whether to reuse the already created segmentation layers.
 
     Returns:
-        A list of :class:`napari.layers.Shapes` layers, one per predicted cell class.
+        None
     """
     missing = []
     for name, image in zip(["DAPI", "Tuj1", "RFP", "BF"], [DAPI, Tuj1, RFP, BF], strict=False):
@@ -250,14 +202,14 @@ def segment_and_classify_widget(
 
     if missing != []:
         show_warning(f"No {', '.join(missing)} image layer(s) selected. Pick one and retry.")
-        return []
+        return None
 
     # Ensure model weights are downloaded (runs only once)
     try:
         ensure_weights()
     except Exception as e:  # noqa: BLE001
         show_warning(f"Failed to download model weights: {e}")
-        return []
+        return None
 
     seg = DAPI.metadata.get("segmentation")
 
@@ -266,25 +218,27 @@ def segment_and_classify_widget(
 
         if not bounding_boxes:
             show_warning("No nuclei detected → nothing to classify.")
-            return []
+            return None
 
-        classification_layers = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
-        return classification_layers  # User already has segmentation layers
+        prediction_layer = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
+        viewer.add_layer(prediction_layer)  # User already has segmentation layers
+        attach_edit_widget(viewer, prediction_layer, IDX2LBL)
+
+        return None
 
     dapi_gray = get_gray_img(DAPI)
 
-    dock_panel_key = "segment_classify_widget"
     setup_cellpose_log_panel(
-        viewer, panel_key=dock_panel_key, dock_title="Cellpose logs - Segment + Classify"
+        viewer, panel_key=CLASSIFY_WIDGET_PANEL_KEY, dock_title="Cellpose logs - Segment + Classify"
     )
-    worker = _segment_async(dapi_gray, gpu, model_type, dock_panel_key)
+    worker = _segment_async(dapi_gray, CLASSIFY_WIDGET_PANEL_KEY, gpu, model_type)
 
     def _on_done(result) -> None:
         pred_masks, centroids, bounding_boxes = result
 
         if not bounding_boxes:
             show_warning("No nuclei detected → nothing to classify.")
-            return []
+            return None
 
         DAPI.metadata["segmentation"] = {
             "masks": pred_masks,
@@ -293,16 +247,13 @@ def segment_and_classify_widget(
         }
 
         segmentation_layers = _get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
-        classification_layers = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
-        for layer in segmentation_layers + classification_layers:
+        prediction_layer = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
+        for layer in segmentation_layers + [prediction_layer]:
             viewer.add_layer(layer)
-
-        for layer in classification_layers:
-            if isinstance(layer, Shapes) and layer.name == "Cells":
-                attach_edit_widget(viewer, layer)
+        attach_edit_widget(viewer, prediction_layer, IDX2LBL)
 
     worker.returned.connect(_on_done)
     worker.errored.connect(lambda e: show_error(f"Cellpose failed: {e}"))
     worker.start()
 
-    return []
+    return None

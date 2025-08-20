@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 from magicgui import magic_factory
 from napari.qt.threading import thread_worker
@@ -17,19 +18,22 @@ from neurogenesis_napari._utils import (
 )
 
 
+SEGMENT_WIDGET_PANEL_KEY = "segment_widget"
+
+
 @thread_worker
 def _segment_async(
     img_gray: np.ndarray,
+    panel_key: str,
     gpu: bool = False,
     model_type: str = "cyto3",
-    panel_key: str = "segment_widget",
-) -> tuple[np.ndarray, list[list[float]], list[np.ndarray]]:
+) -> Tuple[np.ndarray, list[list[float]], list[np.ndarray]]:
     """Segment *img_gray* with Cellpose and derive centroids + bounding boxes. Route the logs to a separate context associated with the panel key.
     Args:
         img_gray (np.ndarray): 2‑D numpy array.
+        panel_key (str): Panel key of the log context.
         gpu (bool: False): If ``True`` and a CUDA device is available, run Cellpose on GPU.
         model_type (str: = "cyto3"):  Name of the pretrained Cellpose model to load.
-        panel_key (str: = "segment_widget): Panel key of the log context.
 
     Returns:
         pred_masks
@@ -99,7 +103,7 @@ def segment_widget(
     DAPI: Image | None = None,
     gpu: bool = False,
     model_type: str = "cyto3",
-) -> list[Layer]:
+) -> None:
     """Run segmentation and add three visual layers to Napari.
 
     Args:
@@ -108,21 +112,20 @@ def segment_widget(
         model_type (str: = "cyto3"): Which Cellpose model weights to load.
 
     Returns:
-        A list of mask Labels, centroid Points, and bounding box Shapes layers (in that order).
+        None
     """
     if DAPI is None:
         show_warning("No DAPI image layer selected. Pick one and retry.")
-        return []
+        return None
 
     img_gray = get_gray_img(DAPI)
 
-    dock_panel_key = "segment_widget"
     setup_cellpose_log_panel(
         viewer,
-        panel_key=dock_panel_key,
+        panel_key=SEGMENT_WIDGET_PANEL_KEY,
         dock_title="Cellpose logs - Segment",
     )
-    worker = _segment_async(img_gray, gpu, model_type, dock_panel_key)
+    worker = _segment_async(img_gray, SEGMENT_WIDGET_PANEL_KEY, gpu, model_type)
 
     def _on_done(result) -> None:
         pred_masks, centroids, bounding_boxes = result
@@ -141,4 +144,4 @@ def segment_widget(
     worker.errored.connect(lambda e: show_error(f"Cellpose failed: {e}"))
     worker.start()
 
-    return []
+    return None

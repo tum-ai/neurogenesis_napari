@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import napari
 from napari.layers import Image
 from napari_czifile2 import napari_get_reader
 from skimage import data
@@ -47,3 +48,11 @@ def _czi_channel_params_via_plugin(
 )
 def img(request: pytest.FixtureRequest) -> Image:
     return request.param[1]()
+
+
+@pytest.fixture
+def make_napari_viewer(qtbot):
+    """Provide a fresh non-interactive napari viewer for tests."""
+    viewer = napari.Viewer(show=False)
+    qtbot.addWidget(viewer.window._qt_window)
+    return lambda: viewer
