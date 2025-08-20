@@ -5,7 +5,7 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/neurogenesis-napari.svg?color=green)](https://python.org)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/neurogenesis-napari)](https://napari-hub.org/plugins/neurogenesis-napari)
 
-This plugin provides one-click color normalization, denoising, and Cellpose-based nuclear segmentation.
+This plugin provides one-click color normalization, denoising, Cellpose-based nuclear segmentation and cell classification.
 
 ## Key Features
 
@@ -104,13 +104,13 @@ The plugin will automatically download required AI models on first use.
 3. **Classification**: Nearest-centroid classifier assigns cell types
 
 #### Output
-Creates colored bounding box layers for each detected cell type:
-- **🟣 Astrocytes** (magenta boxes)
-- **⚫ Dead Cells** (gray boxes)
-- **🔵 Neurons** (cyan boxes)
-- **🟢 OPCs** (lime boxes)
+Creates colored polygons for detected cells based on type:
+- **🟣 Astrocytes** (magenta polygons)
+- **⚫ Dead Cells** (gray polygons)
+- **🔵 Neurons** (cyan polygons)
+- **🟢 OPCs** (lime polygons)
 
-Layer names show counts: `{count}_{cell_type}s` (e.g., `23_Neurons`)
+The classification results can be edited.
 
 ---
 
