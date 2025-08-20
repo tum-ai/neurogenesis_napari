@@ -1,6 +1,6 @@
 [project]
 name = "neurogenesis-napari"
-version = "0.1.0a1.post2"
+version = "0.1.0a1.post3"
 description = "A napari plugin to segment and classify cells."
 authors = [{name = "TUM.ai", email = "contact@tum-ai.com"}]
 requires-python = ">=3.10"
