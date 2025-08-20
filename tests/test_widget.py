@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import Union
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 from napari.layers import Image, Layer
 
@@ -24,14 +25,14 @@ NONE_CASES = [
         "neurogenesis_napari.widgets.segment.show_warning",
         {"DAPI": None},
         "No DAPI image layer selected. Pick one and retry.",
-        [],
+        None,
     ),
     (
         segment_and_classify_widget,
         "neurogenesis_napari.widgets.segment_and_classify.show_warning",
         {"DAPI": None, "Tuj1": None, "RFP": None, "BF": None},
         "No DAPI, Tuj1, RFP, BF image layer(s) selected. Pick one and retry.",
-        [],
+        None,
     ),
 ]
 
@@ -60,30 +61,42 @@ def test_widgets_warn_on_missing_layers(
     assert result == expected_result
 
 
-def test_normalize_and_denoise_widget(img: Image) -> None:
+def test_normalize_and_denoise_widget(img: Image, make_napari_viewer, qtbot) -> None:
     # We test for all test cases from img fixture
     # since theoretically it should work on any kind of image
+    viewer = make_napari_viewer()
+    bf_layer = viewer.add_image(
+        img.data,
+        name=img.name,
+    )
     widget = normalize_and_denoise_widget()
-    result_img = widget(img)
-    assert isinstance(result_img, Image)
+    widget(viewer=viewer, BF=bf_layer)
+    expected_name = f"{bf_layer.name}_denoised"
+
+    def layer_added():
+        return any(layer.name == expected_name for layer in viewer.layers)
+
+    qtbot.waitUntil(layer_added, timeout=500000)
+    denoised_layer = viewer.layers[expected_name]
+    assert isinstance(denoised_layer, Image)
 
     # Ensure that scale and translate are preserved
-    assert (result_img.scale == img.scale[-2:]).all()
-    assert (result_img.translate == img.translate[-2:]).all()
+    assert (denoised_layer.scale == img.scale[-2:]).all()
+    assert (denoised_layer.translate == img.translate[-2:]).all()
 
     # Must be a gray img with size maintained
     # NOTE: some img cases are have more dims,
     # but we must end up with two
-    assert result_img.ndim == 2
+    assert denoised_layer.ndim == 2
     if img.name == "astronaut":
         expected_spatial = img.data.shape[:2]
     else:
         expected_spatial = img.data.shape[-2:]
 
-    assert result_img.data.shape == expected_spatial
+    assert denoised_layer.data.shape == expected_spatial
 
 
-def test_segment_widget(img: Image) -> None:
+def test_segment_widget(img: Image, make_napari_viewer, qtbot) -> None:
     pytest.skip()
     # TODO: we should be able to simulate segmentation results
     if img.name != "sample_czi_ch0":
