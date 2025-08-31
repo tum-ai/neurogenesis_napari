@@ -1,4 +1,5 @@
 from typing import Tuple
+from functools import partial
 import numpy as np
 from magicgui import magic_factory
 from napari.qt.threading import thread_worker
@@ -15,6 +16,7 @@ from neurogenesis_napari._utils import (
     get_gray_img,
     setup_cellpose_log_panel,
     log_context,
+    get_image_choices_with_default,
 )
 
 
@@ -97,10 +99,15 @@ def _get_segmentation_layers(
 
 @magic_factory(
     call_button="Segment",
+    DAPI={
+        "widget_type": "ComboBox",
+        "choices": partial(get_image_choices_with_default, patterns=["dapi"]),
+        "nullable": False,
+    },
 )
 def segment_widget(
     viewer: Viewer,
-    DAPI: Image | None = None,
+    DAPI: Image,
     gpu: bool = False,
     model_type: str = "cyto3",
 ) -> None:

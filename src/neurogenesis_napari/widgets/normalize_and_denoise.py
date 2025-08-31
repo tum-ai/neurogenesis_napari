@@ -1,3 +1,4 @@
+from functools import partial
 import napari
 import numpy as np
 from magicgui import magic_factory
@@ -6,7 +7,12 @@ from napari import Viewer
 from napari.layers import Image
 from napari.utils.notifications import show_warning, show_error
 
-from neurogenesis_napari._utils import get_gray_img, log_context, setup_cellpose_log_panel
+from neurogenesis_napari._utils import (
+    get_gray_img,
+    log_context,
+    setup_cellpose_log_panel,
+    get_image_choices_with_default,
+)
 from neurogenesis_napari.preprocessing.cellpose_denoising import denoise_image
 from neurogenesis_napari.preprocessing.colour_normalization import normalize_colors
 
@@ -37,10 +43,17 @@ def _denoise_async(
 
 @magic_factory(
     call_button="Normalize + Denoise",
+    BF={
+        "widget_type": "ComboBox",
+        "choices": partial(
+            get_image_choices_with_default, patterns=["bf", "bright", "brightfield"]
+        ),
+        "nullable": False,
+    },
 )
 def normalize_and_denoise_widget(
     viewer: Viewer,
-    BF: Image | None = None,
+    BF: Image,
 ) -> None:
     """Normalise colour and denoise the selected bright‑field layer.
 

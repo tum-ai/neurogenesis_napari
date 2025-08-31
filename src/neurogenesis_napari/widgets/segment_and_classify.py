@@ -1,3 +1,4 @@
+from functools import partial
 import pickle
 from functools import lru_cache
 from typing import List
@@ -19,6 +20,7 @@ from neurogenesis_napari._utils import (
     get_gray_img,
     get_weight_path,
     setup_cellpose_log_panel,
+    get_image_choices_with_default,
 )
 from neurogenesis_napari.classification.representation_based.vae import (
     VAE,
@@ -163,13 +165,35 @@ def classify(
 
 @magic_factory(
     call_button="Segment + Classify",
+    DAPI={
+        "widget_type": "ComboBox",
+        "choices": partial(get_image_choices_with_default, patterns=["dapi"]),
+        "nullable": False,
+    },
+    BF={
+        "widget_type": "ComboBox",
+        "choices": partial(
+            get_image_choices_with_default, patterns=["bf", "bright", "brightfield"]
+        ),
+        "nullable": False,
+    },
+    Tuj1={
+        "widget_type": "ComboBox",
+        "choices": partial(get_image_choices_with_default, patterns=["Tuj1"]),
+        "nullable": False,
+    },
+    RFP={
+        "widget_type": "ComboBox",
+        "choices": partial(get_image_choices_with_default, patterns=["RFP"]),
+        "nullable": False,
+    },
 )
 def segment_and_classify_widget(
     viewer: Viewer,
-    DAPI: Image | None = None,
-    Tuj1: Image | None = None,
-    RFP: Image | None = None,
-    BF: Image | None = None,
+    DAPI: Image,
+    Tuj1: Image,
+    RFP: Image,
+    BF: Image,
     reuse_cached_segmentation: bool = True,
     gpu: bool = False,
     model_type: str = "cyto3",
