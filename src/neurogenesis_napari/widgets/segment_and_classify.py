@@ -1,4 +1,3 @@
-from functools import partial
 import pickle
 from functools import lru_cache
 from typing import List
@@ -8,6 +7,7 @@ import numpy as np
 import torch
 from magicgui import magic_factory
 from napari import Viewer
+import napari
 from napari.layers import Image, Layer, Shapes
 from napari.utils.notifications import (
     show_warning,
@@ -20,7 +20,8 @@ from neurogenesis_napari._utils import (
     get_gray_img,
     get_weight_path,
     setup_cellpose_log_panel,
-    get_image_choices_with_default,
+    wire_layer_comboboxes_autorefresh,
+    image_layer_choices,
 )
 from neurogenesis_napari.classification.representation_based.vae import (
     VAE,
@@ -163,32 +164,7 @@ def classify(
     return layer
 
 
-@magic_factory(
-    call_button="Segment + Classify",
-    DAPI={
-        "widget_type": "ComboBox",
-        "choices": partial(get_image_choices_with_default, patterns=["dapi"]),
-        "nullable": False,
-    },
-    BF={
-        "widget_type": "ComboBox",
-        "choices": partial(
-            get_image_choices_with_default, patterns=["bf", "bright", "brightfield"]
-        ),
-        "nullable": False,
-    },
-    Tuj1={
-        "widget_type": "ComboBox",
-        "choices": partial(get_image_choices_with_default, patterns=["Tuj1"]),
-        "nullable": False,
-    },
-    RFP={
-        "widget_type": "ComboBox",
-        "choices": partial(get_image_choices_with_default, patterns=["RFP"]),
-        "nullable": False,
-    },
-)
-def segment_and_classify_widget(
+def _segment_and_classify_widget_impl(
     viewer: Viewer,
     DAPI: Image,
     Tuj1: Image,
@@ -281,3 +257,43 @@ def segment_and_classify_widget(
     worker.start()
 
     return None
+
+
+_factory = magic_factory(
+    call_button="Segment + Classify",
+    DAPI={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+    BF={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+    Tuj1={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+    RFP={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+)(_segment_and_classify_widget_impl)
+
+
+def segment_and_classify_widget():
+    w = _factory()
+    _ = wire_layer_comboboxes_autorefresh(
+        w,
+        viewer=napari.current_viewer(),
+        combos=[
+            (w.DAPI, ["dapi"]),
+            (w.BF, ["bf", "bright", "brightfield"]),
+            (w.Tuj1, ["Tuj1"]),
+            (w.RFP, ["RFP"]),
+        ],
+    )
+    return w
