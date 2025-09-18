@@ -12,23 +12,27 @@ from neurogenesis_napari.widgets import (
     segment_widget,
 )
 
+from neurogenesis_napari.widgets.normalize_and_denoise import _normalize_and_denoise_widget_impl
+from neurogenesis_napari.widgets.segment import _segment_widget_impl
+from neurogenesis_napari.widgets.segment_and_classify import _segment_and_classify_widget_impl
+
 NONE_CASES = [
     (
-        normalize_and_denoise_widget,
+        _normalize_and_denoise_widget_impl,
         "neurogenesis_napari.widgets.normalize_and_denoise.show_warning",
         {"BF": None},
         "No BF image layer selected. Pick one and retry.",
         None,
     ),
     (
-        segment_widget,
+        _segment_widget_impl,
         "neurogenesis_napari.widgets.segment.show_warning",
         {"DAPI": None},
         "No DAPI image layer selected. Pick one and retry.",
         None,
     ),
     (
-        segment_and_classify_widget,
+        _segment_and_classify_widget_impl,
         "neurogenesis_napari.widgets.segment_and_classify.show_warning",
         {"DAPI": None, "Tuj1": None, "RFP": None, "BF": None},
         "No DAPI, Tuj1, RFP, BF image layer(s) selected. Pick one and retry.",
@@ -38,7 +42,7 @@ NONE_CASES = [
 
 
 @pytest.mark.parametrize(
-    "factory, patch_target, kwargs, expected_msg, expected_result",
+    "impl_f, patch_target, kwargs, expected_msg, expected_result",
     NONE_CASES,
     ids=[
         "normalize+denoise",
@@ -47,16 +51,14 @@ NONE_CASES = [
     ],
 )
 def test_widgets_warn_on_missing_layers(
-    factory: Callable,
+    impl_f: Callable,
     patch_target: str,
     kwargs: dict[str, None],
     expected_msg: str,
     expected_result: Union[list, None],
 ) -> None:
     with patch(patch_target) as mock_warning:
-        # Get the widget factory and call its underlying function
-        widget = factory()
-        result = widget(**kwargs)
+        result = impl_f(viewer=None, **kwargs)
     mock_warning.assert_called_once_with(expected_msg)
     assert result == expected_result
 

@@ -2,6 +2,7 @@ from typing import Tuple
 import numpy as np
 from magicgui import magic_factory
 from napari.qt.threading import thread_worker
+import napari
 from napari import Viewer
 from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.utils.notifications import (
@@ -15,6 +16,8 @@ from neurogenesis_napari._utils import (
     get_gray_img,
     setup_cellpose_log_panel,
     log_context,
+    wire_layer_comboboxes_autorefresh,
+    image_layer_choices,
 )
 
 
@@ -95,12 +98,9 @@ def _get_segmentation_layers(
     return [labels_layer, points_layer, boxes_layer]
 
 
-@magic_factory(
-    call_button="Segment",
-)
-def segment_widget(
+def _segment_widget_impl(
     viewer: Viewer,
-    DAPI: Image | None = None,
+    DAPI: Image,
     gpu: bool = False,
     model_type: str = "cyto3",
 ) -> None:
@@ -145,3 +145,23 @@ def segment_widget(
     worker.start()
 
     return None
+
+
+_factory = magic_factory(
+    call_button="Segment",
+    DAPI={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+)(_segment_widget_impl)
+
+
+def segment_widget():
+    w = _factory()
+    _ = wire_layer_comboboxes_autorefresh(
+        w,
+        viewer=napari.current_viewer(),
+        combos=[(w.DAPI, ["dapi"])],
+    )
+    return w
