@@ -1,3 +1,4 @@
+from functools import partial
 import napari
 import numpy as np
 from magicgui import magic_factory
@@ -12,6 +13,8 @@ from neurogenesis_napari._utils import (
     setup_cellpose_log_panel,
     wire_layer_comboboxes_autorefresh,
     image_layer_choices,
+    start_progress,
+    close_progress,
 )
 from neurogenesis_napari.preprocessing.cellpose_denoising import denoise_image
 from neurogenesis_napari.preprocessing.colour_normalization import normalize_colors
@@ -83,10 +86,14 @@ def _normalize_and_denoise_widget_impl(
         )
         viewer.add_layer(denoised_img)
 
+    pbar = {"obj": None}
+
+    worker.started.connect(partial(start_progress, pbar))
     worker.returned.connect(_on_done)
     worker.errored.connect(lambda e: show_error(f"Cellpose denoising failed: {e}"))
-    worker.start()
+    worker.finished.connect(partial(close_progress, pbar))
 
+    worker.start()
     return None
 
 

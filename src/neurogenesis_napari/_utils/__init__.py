@@ -7,6 +7,7 @@ from .image import (
 )
 from .model_hub import ensure_weights, get_weight_path, get_weights_dir
 from .logging_to_napari import setup_cellpose_log_panel, log_context
+from .progress import start_progress, close_progress
 
 __all__ = [
     "get_gray_img",
@@ -19,4 +20,6 @@ __all__ = [
     "is_pattern_match",
     "wire_layer_comboboxes_autorefresh",
     "image_layer_choices",
+    "start_progress",
+    "close_progress",
 ]

@@ -1,4 +1,3 @@
-# logging_to_napari.py
 import logging
 import weakref
 import threading

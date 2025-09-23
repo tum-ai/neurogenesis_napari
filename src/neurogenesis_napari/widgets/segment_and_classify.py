@@ -1,5 +1,5 @@
 import pickle
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import List
 
 import cv2
@@ -22,6 +22,8 @@ from neurogenesis_napari._utils import (
     setup_cellpose_log_panel,
     wire_layer_comboboxes_autorefresh,
     image_layer_choices,
+    start_progress,
+    close_progress,
 )
 from neurogenesis_napari.classification.representation_based.vae import (
     VAE,
@@ -255,10 +257,14 @@ def _segment_and_classify_widget_impl(
         attach_edit_widget(viewer, prediction_layer, IDX2LBL)
         attach_saver_dock(viewer, prediction_layer)
 
+    pbar = {"obj": None}
+
+    worker.started.connect(partial(start_progress, pbar))
     worker.returned.connect(_on_done)
     worker.errored.connect(lambda e: show_error(f"Cellpose failed: {e}"))
-    worker.start()
+    worker.finished.connect(partial(close_progress, pbar))
 
+    worker.start()
     return None
 
 
