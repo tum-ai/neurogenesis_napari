@@ -1,3 +1,4 @@
+import numpy as np
 from typing import Dict
 from magicgui import magicgui
 from napari import Viewer
@@ -5,6 +6,8 @@ from napari.layers import Shapes
 from napari.utils.notifications import (
     show_warning,
 )
+
+HIGHLIGHT_RGBA = np.array([0.0, 1.0, 0.0, 0.7], dtype=float)  # green with 25% alpha
 
 
 def _set_label(layer: Shapes, label: str) -> None:
@@ -25,9 +28,18 @@ def _set_label(layer: Shapes, label: str) -> None:
     if not selected_polys:
         show_warning("Select one or more cell polygons first.")
         return
+
+    # ensure per-shape face colors exist (napari broadcasts a single color; make it explicit array)
+    fc = layer.face_color
+    if fc.ndim == 1:  # single RGBA -> expand to per-shape
+        fc = np.repeat(fc[None, :], len(layer.data), axis=0)
+
     for idx in selected_polys:
         layer.properties["label"][idx] = label
         layer.text.values[idx] = label
+        fc[idx] = HIGHLIGHT_RGBA
+
+    layer.face_color = fc
     layer.refresh_colors()
     layer.refresh()
 
@@ -81,7 +93,7 @@ def attach_edit_widget(viewer: Viewer, layer: Shapes, idx2lbl: Dict[int, str]) -
 
     @magicgui(
         class_label={"widget_type": "ComboBox", "choices": idx2lbl.values()},
-        call_button="Apply",
+        call_button="Apply or Confirm",
         persist=True,
         auto_call=False,
     )

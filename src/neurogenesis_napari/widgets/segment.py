@@ -4,7 +4,7 @@ from magicgui import magic_factory
 from napari.qt.threading import thread_worker
 import napari
 from napari import Viewer
-from napari.layers import Image, Labels, Layer, Points, Shapes
+from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.notifications import (
     show_error,
     show_warning,
@@ -66,7 +66,7 @@ def _get_segmentation_layers(
     pred_masks: np.ndarray,
     centroids: List[List[float]],
     bounding_boxes: List[np.ndarray],
-) -> List[Layer]:
+) -> Tuple[Labels, Points, Shapes]:
     labels_layer = Labels(
         data=pred_masks,
         name=f"{img.name}_masks",
@@ -95,7 +95,7 @@ def _get_segmentation_layers(
         translate=img.translate[-2:],
     )
 
-    return [labels_layer, points_layer, boxes_layer]
+    return labels_layer, points_layer, boxes_layer
 
 
 def _segment_widget_impl(

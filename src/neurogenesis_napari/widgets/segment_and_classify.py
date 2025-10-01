@@ -248,10 +248,16 @@ def _segment_and_classify_widget_impl(
             "bounding_boxes": bounding_boxes,
         }
 
-        segmentation_layers = _get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
+        labels_layer, points_layer, boxes_layer = _get_segmentation_layers(
+            DAPI, pred_masks, centroids, bounding_boxes
+        )
         prediction_layer = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
-        for layer in segmentation_layers + [prediction_layer]:
-            viewer.add_layer(layer)
+
+        viewer.add_layer(labels_layer)
+        viewer.add_layer(points_layer)
+        viewer.add_layer(boxes_layer)
+        viewer.add_layer(prediction_layer)
+
         attach_edit_widget(viewer, prediction_layer, IDX2LBL)
         attach_saver_dock(viewer, prediction_layer)
 
