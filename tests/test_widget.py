@@ -1,10 +1,11 @@
 from collections.abc import Callable
-from typing import Union
+from typing import Union, List
+from functools import partial
 from unittest.mock import patch
 
-import numpy as np
 import pytest
-from napari.layers import Image, Layer
+from napari.layers import Image, Layer, Labels, Points, Shapes
+from napari import Viewer
 
 from neurogenesis_napari.widgets import (
     normalize_and_denoise_widget,
@@ -13,7 +14,7 @@ from neurogenesis_napari.widgets import (
 )
 
 from neurogenesis_napari.widgets.normalize_and_denoise import _normalize_and_denoise_widget_impl
-from neurogenesis_napari.widgets.segment import _segment_widget_impl
+from neurogenesis_napari.widgets.segment import _segment_widget_impl, _get_segmentation_layers
 from neurogenesis_napari.widgets.segment_and_classify import _segment_and_classify_widget_impl
 
 NONE_CASES = [
@@ -63,7 +64,8 @@ def test_widgets_warn_on_missing_layers(
     assert result == expected_result
 
 
-def test_normalize_and_denoise_widget(img: Image, make_napari_viewer, qtbot) -> None:
+@pytest.mark.parametrize("img", ["astronaut_rgb", "sample_czi_ch0"], indirect=True)
+def test_normalize_and_denoise_widget(img: Image, make_napari_viewer: Viewer, qtbot) -> None:
     # We test for all test cases from img fixture
     # since theoretically it should work on any kind of image
     viewer = make_napari_viewer()
@@ -73,13 +75,10 @@ def test_normalize_and_denoise_widget(img: Image, make_napari_viewer, qtbot) -> 
     )
     widget = normalize_and_denoise_widget()
     widget(viewer=viewer, BF=bf_layer)
-    expected_name = f"{bf_layer.name}_denoised"
+    expected_names = [f"{bf_layer.name}_denoised"]
 
-    def layer_added():
-        return any(layer.name == expected_name for layer in viewer.layers)
-
-    qtbot.waitUntil(layer_added, timeout=500000)
-    denoised_layer = viewer.layers[expected_name]
+    qtbot.waitUntil(partial(_expected_layers_added, viewer, expected_names), timeout=50000)
+    denoised_layer = viewer.layers[expected_names[0]]
     assert isinstance(denoised_layer, Image)
 
     # Ensure that scale and translate are preserved
@@ -98,37 +97,63 @@ def test_normalize_and_denoise_widget(img: Image, make_napari_viewer, qtbot) -> 
     assert denoised_layer.data.shape == expected_spatial
 
 
-def test_segment_widget(img: Image, make_napari_viewer, qtbot) -> None:
-    pytest.skip()
-    # TODO: we should be able to simulate segmentation results
-    if img.name != "sample_czi_ch0":
-        pytest.skip("Test is only for DAPI channel.")
+def test_get_segmentation_layers(img: Image, sample_segmentation) -> None:
+    masks, centroids, boxes = sample_segmentation
 
-    # Sanity check that segmentation results are not there beforehand
-    assert "segmentation" not in img.metadata
-
-    widget = segment_widget()
-    results = widget(DAPI=img)
-
-    # Make sure segmentation metadata is saved to img
-    assert "segmentation" in img.metadata
-    assert all(
-        res in img.metadata["segmentation"]
-        for res in ["masks", "centroids", "bounding_boxes"]
+    layers = _get_segmentation_layers(
+        img=img,
+        pred_masks=masks,
+        centroids=centroids,
+        bounding_boxes=boxes,
     )
 
-    # We expect layers for masks, centroids and bboxes
-    assert len(results) == 3
+    assert len(layers) == 3
 
     # Ensure the layers are correct
-    for i, layer in enumerate(results):
+    for i, layer in enumerate(layers):
         assert isinstance(layer, Layer)
         assert (layer.scale == img.scale[-2:]).all()
         assert (layer.translate == img.translate[-2:]).all()
 
-        if i == 0:  # Pred mask layer
-            assert (layer.data == img.metadata["segmentation"]["masks"]).all()
+        if i == 0:  # Mask layer
+            assert isinstance(layer, Labels)
+            assert (layer.data == masks).all()
+            assert layer.name == f"{img.name}_masks"
         elif i == 1:  # Centroids
-            assert (layer.data == img.metadata["segmentation"]["centroids"]).all()
+            assert isinstance(layer, Points)
+            assert (layer.data == centroids).all()
+            assert layer.name == f"{img.name}_centroids"
         else:  # Bboxes
-            assert (layer.data == img.metadata["segmentation"]["bounding_boxes"]).all()
+            assert isinstance(layer, Shapes)
+            assert (layer.data == boxes).all()
+            assert layer.name == f"{img.name}_boxes"
+
+
+@pytest.mark.parametrize("img", ["sample_czi_ch0"], indirect=True)
+def test_segment_widget_adds_layers_and_metadata(img: Image, make_napari_viewer: Viewer, qtbot, fast_segment_worker) -> None:
+    viewer = make_napari_viewer()
+    dapi_layer = viewer.add_image(
+        img.data,
+        name="DAPI",
+    )
+    # NOTE: this does not actually run segmentation, see fast_segment_worker
+    widget = segment_widget()
+    widget(viewer=viewer, DAPI=dapi_layer)
+    expected_names = ["DAPI_masks", "DAPI_centroids", "DAPI_boxes"]
+    
+    qtbot.waitUntil(partial(_expected_layers_added, viewer, expected_names), timeout=50000)
+
+    # Make sure segmentation metadata is saved to img
+    assert "segmentation" in dapi_layer.metadata
+    assert all(
+        res in dapi_layer.metadata["segmentation"]
+        for res in ["masks", "centroids", "bounding_boxes"]
+    )
+
+    # Number of layers must be 4 (original + masks, centroids, bboxes)
+    assert len(viewer.layers) == 4
+
+
+def _expected_layers_added(viewer: Viewer, expected_names: List[str]) -> bool:
+    existing = {layer.name for layer in viewer.layers}
+    return all(name in existing for name in expected_names)
