@@ -6,7 +6,13 @@ from napari import Viewer
 from napari.layers import Image
 from napari.utils.notifications import show_warning, show_error
 
-from neurogenesis_napari._utils import get_gray_img, log_context, setup_cellpose_log_panel
+from neurogenesis_napari._utils import (
+    get_gray_img,
+    log_context,
+    setup_cellpose_log_panel,
+    wire_layer_comboboxes_autorefresh,
+    image_layer_choices,
+)
 from neurogenesis_napari.preprocessing.cellpose_denoising import denoise_image
 from neurogenesis_napari.preprocessing.colour_normalization import normalize_colors
 
@@ -35,12 +41,9 @@ def _denoise_async(
     return denoised_img
 
 
-@magic_factory(
-    call_button="Normalize + Denoise",
-)
-def normalize_and_denoise_widget(
+def _normalize_and_denoise_widget_impl(
     viewer: Viewer,
-    BF: Image | None = None,
+    BF: Image,
 ) -> None:
     """Normalise colour and denoise the selected bright‑field layer.
 
@@ -85,3 +88,23 @@ def normalize_and_denoise_widget(
     worker.start()
 
     return None
+
+
+_factory = magic_factory(
+    call_button="Normalize + Denoise",
+    BF={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+)(_normalize_and_denoise_widget_impl)
+
+
+def normalize_and_denoise_widget():
+    w = _factory()
+    _ = wire_layer_comboboxes_autorefresh(
+        w,
+        viewer=napari.current_viewer(),
+        combos=[(w.BF, ["bf", "bright", "brightfield"])],
+    )
+    return w

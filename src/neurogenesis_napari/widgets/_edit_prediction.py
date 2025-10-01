@@ -95,6 +95,6 @@ def attach_edit_widget(viewer: Viewer, layer: Shapes, idx2lbl: Dict[int, str]) -
             edit_label.class_label.value = layer.properties["label"][sel[0]]
 
     layer.events.connect(_sync_dropdown)
-    viewer.window.add_dock_widget(edit_label, area="right", name="Edit cell label")
+    viewer.window.add_dock_widget(edit_label, area="right", name="Edit cell labels")
 
     add_label_hotkeys(layer, idx2lbl)

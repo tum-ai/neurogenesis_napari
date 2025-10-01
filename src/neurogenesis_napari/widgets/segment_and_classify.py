@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from magicgui import magic_factory
 from napari import Viewer
+import napari
 from napari.layers import Image, Layer, Shapes
 from napari.utils.notifications import (
     show_warning,
@@ -19,6 +20,8 @@ from neurogenesis_napari._utils import (
     get_gray_img,
     get_weight_path,
     setup_cellpose_log_panel,
+    wire_layer_comboboxes_autorefresh,
+    image_layer_choices,
 )
 from neurogenesis_napari.classification.representation_based.vae import (
     VAE,
@@ -30,6 +33,7 @@ from neurogenesis_napari.widgets.segment import (
     _segment_async,
 )
 from neurogenesis_napari.widgets._edit_prediction import attach_edit_widget
+from neurogenesis_napari.widgets._save_csv import attach_saver_dock
 
 PALETTE = {
     "Astrocyte": "magenta",
@@ -161,15 +165,12 @@ def classify(
     return layer
 
 
-@magic_factory(
-    call_button="Segment + Classify",
-)
-def segment_and_classify_widget(
+def _segment_and_classify_widget_impl(
     viewer: Viewer,
-    DAPI: Image | None = None,
-    Tuj1: Image | None = None,
-    RFP: Image | None = None,
-    BF: Image | None = None,
+    DAPI: Image,
+    Tuj1: Image,
+    RFP: Image,
+    BF: Image,
     reuse_cached_segmentation: bool = True,
     gpu: bool = False,
     model_type: str = "cyto3",
@@ -223,6 +224,7 @@ def segment_and_classify_widget(
         prediction_layer = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
         viewer.add_layer(prediction_layer)  # User already has segmentation layers
         attach_edit_widget(viewer, prediction_layer, IDX2LBL)
+        attach_saver_dock(viewer, prediction_layer)
 
         return None
 
@@ -251,9 +253,50 @@ def segment_and_classify_widget(
         for layer in segmentation_layers + [prediction_layer]:
             viewer.add_layer(layer)
         attach_edit_widget(viewer, prediction_layer, IDX2LBL)
+        attach_saver_dock(viewer, prediction_layer)
 
     worker.returned.connect(_on_done)
     worker.errored.connect(lambda e: show_error(f"Cellpose failed: {e}"))
     worker.start()
 
     return None
+
+
+_factory = magic_factory(
+    call_button="Segment + Classify",
+    DAPI={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+    BF={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+    Tuj1={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+    RFP={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+)(_segment_and_classify_widget_impl)
+
+
+def segment_and_classify_widget():
+    w = _factory()
+    _ = wire_layer_comboboxes_autorefresh(
+        w,
+        viewer=napari.current_viewer(),
+        combos=[
+            (w.DAPI, ["dapi"]),
+            (w.BF, ["bf", "bright", "brightfield"]),
+            (w.Tuj1, ["Tuj1"]),
+            (w.RFP, ["RFP"]),
+        ],
+    )
+    return w

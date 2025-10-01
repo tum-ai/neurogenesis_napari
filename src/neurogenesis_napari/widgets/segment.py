@@ -1,7 +1,8 @@
-from typing import Tuple
+from typing import Tuple, List
 import numpy as np
 from magicgui import magic_factory
 from napari.qt.threading import thread_worker
+import napari
 from napari import Viewer
 from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.utils.notifications import (
@@ -15,6 +16,8 @@ from neurogenesis_napari._utils import (
     get_gray_img,
     setup_cellpose_log_panel,
     log_context,
+    wire_layer_comboboxes_autorefresh,
+    image_layer_choices,
 )
 
 
@@ -27,7 +30,7 @@ def _segment_async(
     panel_key: str,
     gpu: bool = False,
     model_type: str = "cyto3",
-) -> Tuple[np.ndarray, list[list[float]], list[np.ndarray]]:
+) -> Tuple[np.ndarray, List[List[float]], List[np.ndarray]]:
     """Segment *img_gray* with Cellpose and derive centroids + bounding boxes. Route the logs to a separate context associated with the panel key.
     Args:
         img_gray (np.ndarray): 2‑D numpy array.
@@ -61,9 +64,9 @@ def _segment_async(
 def _get_segmentation_layers(
     img: Image,
     pred_masks: np.ndarray,
-    centroids: list[list[float]],
-    bounding_boxes: list[np.ndarray],
-) -> list[Layer]:
+    centroids: List[List[float]],
+    bounding_boxes: List[np.ndarray],
+) -> List[Layer]:
     labels_layer = Labels(
         data=pred_masks,
         name=f"{img.name}_masks",
@@ -95,12 +98,9 @@ def _get_segmentation_layers(
     return [labels_layer, points_layer, boxes_layer]
 
 
-@magic_factory(
-    call_button="Segment",
-)
-def segment_widget(
+def _segment_widget_impl(
     viewer: Viewer,
-    DAPI: Image | None = None,
+    DAPI: Image,
     gpu: bool = False,
     model_type: str = "cyto3",
 ) -> None:
@@ -145,3 +145,23 @@ def segment_widget(
     worker.start()
 
     return None
+
+
+_factory = magic_factory(
+    call_button="Segment",
+    DAPI={
+        "widget_type": "ComboBox",
+        "choices": image_layer_choices,
+        "nullable": True,
+    },
+)(_segment_widget_impl)
+
+
+def segment_widget():
+    w = _factory()
+    _ = wire_layer_comboboxes_autorefresh(
+        w,
+        viewer=napari.current_viewer(),
+        combos=[(w.DAPI, ["dapi"])],
+    )
+    return w
