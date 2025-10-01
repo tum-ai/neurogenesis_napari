@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 import numpy as np
 from magicgui import magic_factory
 from napari.qt.threading import thread_worker
@@ -30,7 +30,7 @@ def _segment_async(
     panel_key: str,
     gpu: bool = False,
     model_type: str = "cyto3",
-) -> Tuple[np.ndarray, list[list[float]], list[np.ndarray]]:
+) -> Tuple[np.ndarray, List[List[float]], List[np.ndarray]]:
     """Segment *img_gray* with Cellpose and derive centroids + bounding boxes. Route the logs to a separate context associated with the panel key.
     Args:
         img_gray (np.ndarray): 2‑D numpy array.
@@ -64,9 +64,9 @@ def _segment_async(
 def _get_segmentation_layers(
     img: Image,
     pred_masks: np.ndarray,
-    centroids: list[list[float]],
-    bounding_boxes: list[np.ndarray],
-) -> list[Layer]:
+    centroids: List[List[float]],
+    bounding_boxes: List[np.ndarray],
+) -> List[Layer]:
     labels_layer = Labels(
         data=pred_masks,
         name=f"{img.name}_masks",

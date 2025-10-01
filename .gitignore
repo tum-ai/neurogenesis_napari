@@ -88,4 +88,3 @@ weights/
 
 .pytest_cache/
 .ruff_cache/
-*.npy

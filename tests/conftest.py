@@ -1,10 +1,12 @@
 from pathlib import Path
+from typing import Tuple, List
 
 import numpy as np
 import pytest
 import napari
 from napari.layers import Image
 from napari_czifile2 import napari_get_reader
+from napari.qt.threading import create_worker
 from skimage import data
 
 
@@ -33,21 +35,21 @@ def _czi_channel_params_via_plugin(
         )
     return params
 
+_ALL_IMG_PARAMS = [
+    ("camera_gray", lambda: Image(data.camera(), name="camera")),
+    ("astronaut_rgb", lambda: Image(data.astronaut(), name="astronaut", rgb=True)),
+    ("synthetic", lambda: Image(np.random.rand(32, 42), name="synthetic")),
+    *_czi_channel_params_via_plugin(),
+]
+_ID2PARAM = {p[0]: p for p in _ALL_IMG_PARAMS}
 
-@pytest.fixture(
-    params=[
-        ("camera_gray", lambda: Image(data.camera(), name="camera")),
-        (
-            "astronaut_rgb",
-            lambda: Image(data.astronaut(), name="astronaut", rgb=True),
-        ),
-        ("synthetic", lambda: Image(np.random.rand(32, 42), name="synthetic")),
-        *_czi_channel_params_via_plugin(),
-    ],
-    ids=lambda p: p[0],
-)
+
+@pytest.fixture(params=_ALL_IMG_PARAMS, ids=[p[0] for p in _ALL_IMG_PARAMS])
 def img(request: pytest.FixtureRequest) -> Image:
-    return request.param[1]()
+    param = request.param
+    if isinstance(param, str):      
+        param = _ID2PARAM[param]
+    return param[1]()
 
 
 @pytest.fixture
@@ -56,3 +58,28 @@ def make_napari_viewer(qtbot):
     viewer = napari.Viewer(show=False)
     qtbot.addWidget(viewer.window._qt_window)
     return lambda: viewer
+
+
+@pytest.fixture
+def sample_segmentation() -> Tuple[np.ndarray, List[List[float]], List[np.ndarray]]:
+    masks = np.load(Path(__file__).parent / "sample_masks.npy")
+    centroids = np.load(Path(__file__).parent / "sample_centroids.npy")
+    boxes = np.load(Path(__file__).parent / "sample_boxes.npy")
+    return masks, centroids, boxes
+
+
+@pytest.fixture
+def fast_segment_worker(monkeypatch, sample_segmentation) -> None:
+    """Patch _segment_async so tests don't download models or run Cellpose."""
+    masks, centroids, boxes = sample_segmentation
+
+    def fake_segment_async(img_gray, panel_key, gpu=False, model_type="cyto3"):
+        def run():
+            return masks, centroids, boxes
+        return create_worker(run) # mimics @thread_worker return
+
+    monkeypatch.setattr(
+        "neurogenesis_napari.widgets.segment._segment_async",
+        fake_segment_async,
+        raising=True,
+    )
