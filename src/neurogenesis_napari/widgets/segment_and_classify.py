@@ -33,6 +33,7 @@ from neurogenesis_napari.widgets.segment import (
     _segment_async,
 )
 from neurogenesis_napari.widgets._edit_prediction import attach_edit_widget
+from neurogenesis_napari.widgets._save_csv import attach_saver_dock
 
 PALETTE = {
     "Astrocyte": "magenta",
@@ -223,6 +224,7 @@ def _segment_and_classify_widget_impl(
         prediction_layer = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
         viewer.add_layer(prediction_layer)  # User already has segmentation layers
         attach_edit_widget(viewer, prediction_layer, IDX2LBL)
+        attach_saver_dock(viewer, prediction_layer)
 
         return None
 
@@ -251,6 +253,7 @@ def _segment_and_classify_widget_impl(
         for layer in segmentation_layers + [prediction_layer]:
             viewer.add_layer(layer)
         attach_edit_widget(viewer, prediction_layer, IDX2LBL)
+        attach_saver_dock(viewer, prediction_layer)
 
     worker.returned.connect(_on_done)
     worker.errored.connect(lambda e: show_error(f"Cellpose failed: {e}"))
