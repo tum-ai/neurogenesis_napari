@@ -18,6 +18,7 @@ from sklearn.neighbors import NearestCentroid
 from neurogenesis_napari._utils import (
     ensure_weights,
     get_gray_img,
+    crop_stack_resize,
     get_weight_path,
     setup_cellpose_log_panel,
     wire_layer_comboboxes_autorefresh,
@@ -29,13 +30,13 @@ from neurogenesis_napari.classification.representation_based.vae import (
     VAE,
     generate_latent_representation,
 )
-from neurogenesis_napari.segmentation.cs import crop_from_bbox, enlarge_bbox
 from neurogenesis_napari.widgets.segment import (
     _get_segmentation_layers,
     _segment_async,
 )
 from neurogenesis_napari.widgets._edit_prediction import attach_edit_widget
 from neurogenesis_napari.widgets._save_csv import attach_saver_dock
+from neurogenesis_napari.widgets._inspect import attach_inspect_widget
 
 PALETTE = {
     "Astrocyte": "magenta",
@@ -79,32 +80,6 @@ def classify_patch(patch: np.ndarray, vae: VAE, clf: NearestCentroid) -> str:
     """
     z = generate_latent_representation(patch, vae)
     return IDX2LBL[int(clf.predict(z)[0])]
-
-
-def crop_stack_resize(
-    channels: tuple[np.ndarray, ...], bbox: np.ndarray, out_size: int = 224
-) -> np.ndarray:
-    """Extract the same enlarged bounding‑box from each channel and resize.
-
-    Args:
-        channels (tuple[np.ndarray,...]): Sequence of single‑channel images with identical spatial shape.
-        bbox (np.ndarray): Polygon representing the nucleus bounding box.
-        out_size (int: = 224): Final square size after resizing.
-
-    Returns:
-        Stacked patch with shape (len(channels), out_size, out_size).
-    """
-    flat = [
-        bbox[:, 0].min(),
-        bbox[:, 1].min(),
-        bbox[:, 0].max(),
-        bbox[:, 1].max(),
-    ]
-    big = enlarge_bbox(channels[0].shape, flat, 2)
-    crops = [
-        cv2.resize(crop_from_bbox(ch, big), (out_size, out_size), cv2.INTER_AREA) for ch in channels
-    ]
-    return np.stack(crops, -1).transpose(2, 0, 1)
 
 
 def classify(
@@ -226,6 +201,7 @@ def _segment_and_classify_widget_impl(
         prediction_layer = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
         viewer.add_layer(prediction_layer)  # User already has segmentation layers
         attach_edit_widget(viewer, prediction_layer, IDX2LBL)
+        attach_inspect_widget(viewer, prediction_layer, IDX2LBL, DAPI, BF, Tuj1, RFP)
         attach_saver_dock(viewer, prediction_layer)
 
         return None
@@ -255,6 +231,7 @@ def _segment_and_classify_widget_impl(
         for layer in segmentation_layers + [prediction_layer]:
             viewer.add_layer(layer)
         attach_edit_widget(viewer, prediction_layer, IDX2LBL)
+        attach_inspect_widget(viewer, prediction_layer, IDX2LBL, DAPI, BF, Tuj1, RFP)
         attach_saver_dock(viewer, prediction_layer)
 
     pbar = {"obj": None}

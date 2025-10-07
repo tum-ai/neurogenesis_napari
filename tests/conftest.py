@@ -4,11 +4,12 @@ from typing import Tuple, List
 import numpy as np
 import pytest
 import napari
-from napari.layers import Image
+from napari.layers import Image, Shapes
 from napari_czifile2 import napari_get_reader
 from napari.qt.threading import create_worker
 from skimage import data
 
+from neurogenesis_napari.widgets.segment_and_classify import PALETTE
 
 def _czi_channel_params_via_plugin(
     path: Path = Path(__file__).parent / "sample.czi",
@@ -66,6 +67,31 @@ def sample_segmentation() -> Tuple[np.ndarray, List[List[float]], List[np.ndarra
     centroids = np.load(Path(__file__).parent / "sample_centroids.npy")
     boxes = np.load(Path(__file__).parent / "sample_boxes.npy")
     return masks, centroids, boxes
+
+
+@pytest.fixture
+def sample_bbox_shapes_layer(img: Image) -> Shapes:
+    boxes = np.load(Path(__file__).parent / "sample_boxes.npy")
+    labels = ["OPC" for _ in range(len(boxes))] 
+    layer = Shapes(
+        data=boxes,
+        shape_type="polygon",
+        properties={"label": labels},
+        name=f"{img.name}_test",
+        edge_width=4,
+        face_color=[0, 0, 0, 0],
+        scale=img.scale[-2:],
+        translate=img.translate[-2:],
+        edge_color="label",
+        edge_color_cycle=list(PALETTE.values()),
+        text={
+            "text": "{label}",
+            "size": 5,
+            "anchor": "upper_left",
+            "translation": [0, 0],
+        },
+    )
+    return layer
 
 
 @pytest.fixture
