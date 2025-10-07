@@ -83,3 +83,17 @@ def fast_segment_worker(monkeypatch, sample_segmentation) -> None:
         fake_segment_async,
         raising=True,
     )
+
+
+@pytest.fixture(autouse=True)
+def mock_progress_functions(monkeypatch) -> None:
+    """Mock progress functions to prevent hanging in tests."""
+    def mock_start_progress(pbar):
+        pbar["obj"] = None 
+    
+    def mock_close_progress(pbar):
+        pass
+    
+    for widget in ["normalize_and_denoise", "segment"]:
+        monkeypatch.setattr(f"neurogenesis_napari.widgets.{widget}.start_progress", mock_start_progress)
+        monkeypatch.setattr(f"neurogenesis_napari.widgets.{widget}.close_progress", mock_close_progress)

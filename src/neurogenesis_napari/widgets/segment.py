@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Tuple, List
 import numpy as np
 from magicgui import magic_factory
@@ -8,6 +9,7 @@ from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.utils.notifications import (
     show_error,
     show_warning,
+    show_info,
 )
 from skimage.measure import regionprops
 
@@ -18,6 +20,8 @@ from neurogenesis_napari._utils import (
     log_context,
     wire_layer_comboboxes_autorefresh,
     image_layer_choices,
+    start_progress,
+    close_progress,
 )
 
 
@@ -45,6 +49,8 @@ def _segment_async(
     """
     from cellpose import models
     from neurogenesis_napari.segmentation.dapi_cellpose import segment
+
+    show_info("Segmentation is running...")
 
     # route logs from this thread to the matching dock only
     with log_context(panel_key):
@@ -125,6 +131,7 @@ def _segment_widget_impl(
         panel_key=SEGMENT_WIDGET_PANEL_KEY,
         dock_title="Cellpose logs - Segment",
     )
+
     worker = _segment_async(img_gray, SEGMENT_WIDGET_PANEL_KEY, gpu, model_type)
 
     def _on_done(result) -> None:
@@ -140,10 +147,16 @@ def _segment_widget_impl(
         for layer in segmentation_layers:
             viewer.add_layer(layer)
 
-    worker.returned.connect(_on_done)
-    worker.errored.connect(lambda e: show_error(f"Cellpose failed: {e}"))
-    worker.start()
+        show_info("Cellpose segmentation finished.")
 
+    pbar = {"obj": None}
+
+    worker.started.connect(partial(start_progress, pbar))
+    worker.returned.connect(_on_done)
+    worker.errored.connect(lambda e: (show_error(f"Cellpose failed: {e}")))
+    worker.finished.connect(partial(close_progress, pbar))
+
+    worker.start()
     return None
 
 

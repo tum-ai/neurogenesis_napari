@@ -12,7 +12,6 @@ from neurogenesis_napari.widgets import (
     segment_and_classify_widget,
     segment_widget,
 )
-
 from neurogenesis_napari.widgets.normalize_and_denoise import _normalize_and_denoise_widget_impl
 from neurogenesis_napari.widgets.segment import _segment_widget_impl, _get_segmentation_layers
 from neurogenesis_napari.widgets.segment_and_classify import _segment_and_classify_widget_impl
