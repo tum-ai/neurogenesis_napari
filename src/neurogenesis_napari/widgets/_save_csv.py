@@ -63,7 +63,7 @@ def attach_saver_dock(viewer: Viewer, layer: Shapes) -> None:
 
     Args:
         viewer (Viewer): Napari viewer instance.
-        layer (Shapes): Shapes layer containing cell polygons.
+        layer (Shapes): Shapes layer containing cell polygons with labels.
 
     Returns:
         None
