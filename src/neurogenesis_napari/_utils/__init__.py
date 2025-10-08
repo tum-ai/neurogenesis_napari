@@ -1,4 +1,4 @@
-from .geometry import bbox_to_rectangle
+from .geometry import bbox_to_rectangle, crop_stack_resize
 from .image import (
     get_gray_img,
     is_pattern_match,
@@ -12,6 +12,7 @@ from .progress import start_progress, close_progress
 __all__ = [
     "get_gray_img",
     "bbox_to_rectangle",
+    "crop_stack_resize",
     "ensure_weights",
     "get_weight_path",
     "get_weights_dir",
