@@ -1,11 +1,11 @@
-# TUMai Helmholtz Neurogenesis Napari Plugin
+# TUM.ai Neurogenesis Napari Plugin
 
 [![License MIT](https://img.shields.io/pypi/l/neurogenesis-napari.svg?color=green)](https://github.com/tum-ai/neurogenesis_napari/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/neurogenesis-napari.svg?color=green)](https://pypi.org/project/neurogenesis-napari)
 [![Python Version](https://img.shields.io/pypi/pyversions/neurogenesis-napari.svg?color=green)](https://python.org)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/neurogenesis-napari)](https://napari-hub.org/plugins/neurogenesis-napari)
 
-This plugin provides one-click color normalization, denoising, Cellpose-based nuclear segmentation and cell classification.
+A napari plugin for automated nuclear segmentation and neural cell type classification in neurogenesis research. Supports classification of astrocytes, neurons, oligodendrocyte precursor cells (OPCs), and dead cells from multi-channel fluorescence microscopy images.
 
 ## Key Features
 
@@ -26,17 +26,17 @@ pip install neurogenesis-napari
 Or install through napari:
 1. Open napari
 2. Go to `Plugins` → `Install/Uninstall Plugins`
-3. Search for **"TumAI Neurogenesis Toolkit"**
+3. Search for "TUM.ai Neurogenesis Toolkit"
 4. Click Install
 
 ### Basic Usage
 
-1. **Load your images** into napari
-2. **Select the appropriate widget** from the `Plugins` menu
-3. **Choose your image layers** from the dropdown menus
-4. **Click the action button** to process
+1. Load your images into napari
+2. Select the appropriate widget from the `Plugins` menu
+3. Choose your image layers from the dropdown menus
+4. Click the action button to process
 
-The plugin will automatically download required AI models on first use.
+Model weights are automatically downloaded on first use.
 
 ---
 
@@ -44,7 +44,7 @@ The plugin will automatically download required AI models on first use.
 
 ### Normalize + Denoise
 
-**Purpose**: Standardizes color variations and reduces noise in bright-field images.
+Standardizes color variations and reduces noise in bright-field microscopy images.
 
 #### Usage
 1. Load a bright-field image into napari
@@ -53,67 +53,101 @@ The plugin will automatically download required AI models on first use.
 4. Click **"Normalize + Denoise"**
 
 #### What it does
-- **Color Normalization**: Adjusts colors against an internal reference to standardize appearance across different images/scanners
-- **Denoising**: Removes noise while preserving important cellular structures
+- **Color Normalization**: Histogram matching against an internal reference to standardize appearance across different acquisitions
+- **Denoising**: Removes noise while preserving cellular structures using Cellpose
 - **Output**: Creates a new layer named `{original_name}_denoised`
 
 ---
 
 ### Segment
 
-**Purpose**: Detects and segments individual cell nuclei using Cellpose.
+Detects and segments individual cell nuclei from DAPI-stained images using Cellpose.
 
 #### Usage
-1. Load a nuclear staining image (DAPI) into napari
+1. Load a DAPI/nuclear staining image into napari
 2. Open `Plugins` → `Segment`
-3. Select your nuclear image from the **DAPI** dropdown
+3. Select your DAPI image from the **DAPI** dropdown
 4. Optionally adjust:
-   - **GPU**: Enable for faster processing
+   - **GPU**: Enable for faster processing (if CUDA available)
    - **Model**: Choose Cellpose model (`cyto3` default)
-5. Click **"Segment Nuclei"**
+5. Click **"Segment"**
 
 #### What it does
 - **Segmentation**: Uses Cellpose to identify individual nuclei
 - **Creates 3 new layers**:
-  - `{name}_masks`: Segmentation masks
-  - `{name}_centroids`: Center points of each detected cell
-  - `{name}_bboxes`: Bounding boxes around each cell
+  - `{name}_masks`: Segmentation masks for each nucleus
+  - `{name}_centroids`: Center points of detected nuclei
+  - `{name}_bboxes`: Bounding boxes (polygons) around each nucleus
 
 ---
 
 ### Segment + Classify
 
-**Purpose**: Complete pipeline that segments nuclei AND classifies cell types in multi-channel images.
+End-to-end pipeline that segments nuclei and classifies neural cell types in multi-channel fluorescence images.
 
 #### Usage
 1. Load a **4-channel image** into napari as separate layers:
-   - **DAPI**: Nuclear staining
-   - **Tuj1**: β-III-tubulin
+   - **DAPI**: Nuclear staining (DAPI/Hoechst)
+   - **Tuj1**: β-III-tubulin (neuronal marker)
    - **RFP**: Red fluorescent protein marker
    - **BF**: Bright-field
 2. Open `Plugins` → `Segment and Classify`
 3. Select each channel from the respective dropdowns
-4. Choose **Reuse cached**:
-   - **True**: Reuse previous segmentation (faster) from the segment widget
+4. Choose **Reuse cached segmentation**:
+   - **True** (default): Reuse previous segmentation if available (faster)
    - **False**: Perform fresh segmentation
 5. Click **"Segment + Classify"**
 
-#### What it does
-1. **Segmentation**: Does segmentation same as the segment widget above
-2. **Feature extraction**: Uses a Variational Autoencoder (VAE) to extract features
-3. **Classification**: Nearest-centroid classifier assigns cell types
+#### How it works
+1. **Segmentation**: Cellpose-based nuclear segmentation on DAPI channel
+2. **Feature extraction**: Variational Autoencoder (VAE) extracts features from 4-channel patches around each nucleus
+3. **Classification**: Nearest-centroid classifier assigns cell types based on learned centroids
 
 #### Output
-Creates colored polygons for detected cells based on type:
-- **🟣 Astrocytes** (magenta polygons)
-- **⚫ Dead Cells** (gray polygons)
-- **🔵 Neurons** (cyan polygons)
-- **🟢 OPCs** (lime polygons)
+Creates colored polygon overlays for each detected cell:
+- Astrocytes (magenta)
+- Neurons (cyan)
+- OPCs - Oligodendrocyte Precursor Cells (lime)
+- Dead Cells (gray)
 
-The classification results can be edited.
+The classification results can be manually corrected through an interactive interface. Select any cell and use keyboard shortcuts to reassign its type: Shift+A (Astrocyte), Shift+N (Neuron), Shift+O (OPC), Shift+D (Dead Cell).
 
 ---
 
+---
+
+## Technical Details
+
 ### Supported Image Formats
-- `.czi` (via napari-czifile2)
+- `.czi` (Zeiss microscopy files, via napari-czifile2)
+- `.tiff`, `.tif`
 - `.png`, `.jpg`
+
+### Cell Classification Model
+- **Feature extraction**: Variational Autoencoder (VAE) with 2304-dimensional latent space
+- **Classifier**: Scikit-learn Nearest Centroid
+- **Input**: 224×224 pixel patches from 4 channels (DAPI, BF, Tuj1, RFP)
+- **Output**: 4 cell type classes
+
+### Requirements
+- Python ≥ 3.10
+- CUDA-capable GPU (optional, for faster processing)
+- Model weights are automatically downloaded on first use via Hugging Face Hub
+
+---
+
+## Citation
+
+If you use this plugin in your research, please cite:
+
+```
+TUM.ai Neurogenesis Napari Plugin
+Technical University of Munich
+https://github.com/tum-ai/neurogenesis_napari
+```
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
