@@ -6,6 +6,8 @@ from napari.layers import Shapes, Image
 from napari.utils.notifications import show_warning, show_info
 
 from neurogenesis_napari.widget_utils import crop_stack_resize
+from neurogenesis_napari.settings import SHORTCUT_TO_LABEL
+
 
 # Global dictionary to store inspection state for each viewer
 _inspection_states: Dict[Viewer, Dict[str, Any]] = {}
@@ -259,6 +261,19 @@ def _add_label_editor_to_viewer(
     # Add dock widgets and store references
     label_dock = viewer.window.add_dock_widget(update_label, area="right", name="Edit Label")
     nav_dock = viewer.window.add_dock_widget(nav_widget, area="right", name="Navigation")
+
+    # Bind keyboard shortcuts for navigation
+    viewer.bind_key("Right", lambda v: go_to_next())
+    viewer.bind_key("Left", lambda v: go_to_previous())
+
+    # Bind letter keys for label changes
+    for key, label in SHORTCUT_TO_LABEL.items():
+
+        def _label_handler(v, lbl=label):
+            update_label.new_label.value = lbl
+            update_label()
+
+        viewer.bind_key(key, _label_handler)
 
     # Store widget references for later updates
     _viewer_widgets[viewer] = {

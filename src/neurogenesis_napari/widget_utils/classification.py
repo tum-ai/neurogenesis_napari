@@ -17,14 +17,11 @@ from neurogenesis_napari.classification.representation_based.vae import (
     VAE,
     generate_latent_representation,
 )
+from neurogenesis_napari.settings import (
+    PALETTE,
+    IDX2LBL,
+)
 
-PALETTE = {
-    "Astrocyte": "magenta",
-    "Dead Cell": "gray",
-    "Neuron": "cyan",
-    "OPC": "lime",
-}
-IDX2LBL = {0: "Astrocyte", 1: "Dead Cell", 2: "Neuron", 3: "OPC"}
 PREDICTION_LAYER_NAME = "Predictions"
 
 

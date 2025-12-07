@@ -10,7 +10,7 @@ from napari.qt.threading import create_worker
 from skimage import data
 
 
-from neurogenesis_napari.widget_utils.classification import PALETTE
+from neurogenesis_napari.settings import PALETTE
 
 
 def _czi_channel_params_via_plugin(

@@ -11,7 +11,7 @@ from .progress import start_progress, close_progress
 from .segmentation import load_segmentation, save_segmentation, get_segmentation_layers
 from .save_csv import attach_saver_dock
 from .edit_prediction import attach_edit_widget
-from .classification import classify, IDX2LBL
+from .classification import classify
 from .inspect import attach_inspect_widget, _extract_cell_patch
 
 __all__ = [
@@ -36,5 +36,4 @@ __all__ = [
     "attach_inspect_widget",
     "_extract_cell_patch",
     "classify",
-    IDX2LBL,
 ]
