@@ -8,7 +8,7 @@ from napari.utils.notifications import (
     show_warning,
     show_error,
 )
-from neurogenesis_napari._utils import (
+from neurogenesis_napari.widget_utils import (
     ensure_weights,
     get_gray_img,
     setup_cellpose_log_panel,
@@ -18,15 +18,16 @@ from neurogenesis_napari._utils import (
     close_progress,
     load_segmentation,
     save_segmentation,
+    get_segmentation_layers,
+    attach_saver_dock,
+    attach_edit_widget,
+    attach_inspect_widget,
+    classify,
+    IDX2LBL,
 )
 from neurogenesis_napari.widgets.segment import (
-    _get_segmentation_layers,
     _segment_async,
 )
-from neurogenesis_napari.widgets._edit_prediction import attach_edit_widget
-from neurogenesis_napari.widgets._save_csv import attach_saver_dock
-from neurogenesis_napari.widgets._inspect import attach_inspect_widget
-from neurogenesis_napari.widgets._classify import classify, IDX2LBL
 
 
 CLASSIFY_WIDGET_PANEL_KEY = "segment_classify_widget"
@@ -80,7 +81,7 @@ def _segment_and_classify_widget_impl(
         return None
 
     seg = None
-    
+
     if reuse_cached_segmentation:
         # check memory
         seg = DAPI.metadata.get("segmentation")
@@ -128,7 +129,7 @@ def _segment_and_classify_widget_impl(
 
         save_segmentation(DAPI, pred_masks, centroids, bounding_boxes, gpu, model_type)
 
-        segmentation_layers = _get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
+        segmentation_layers = get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
         prediction_layer = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
         for layer in segmentation_layers + [prediction_layer]:
             viewer.add_layer(layer)

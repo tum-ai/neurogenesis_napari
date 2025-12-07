@@ -5,15 +5,14 @@ from magicgui import magic_factory
 from napari.qt.threading import thread_worker
 import napari
 from napari import Viewer
-from napari.layers import Image, Labels, Layer, Points, Shapes
+from napari.layers import Image
 from napari.utils.notifications import (
     show_error,
     show_warning,
     show_info,
 )
 from skimage.measure import regionprops
-
-from neurogenesis_napari._utils import (
+from neurogenesis_napari.widget_utils import (
     bbox_to_rectangle,
     get_gray_img,
     setup_cellpose_log_panel,
@@ -22,6 +21,7 @@ from neurogenesis_napari._utils import (
     image_layer_choices,
     start_progress,
     close_progress,
+    get_segmentation_layers,
 )
 
 
@@ -67,43 +67,6 @@ def _segment_async(
     return pred_masks, centroids, bounding_boxes
 
 
-def _get_segmentation_layers(
-    img: Image,
-    pred_masks: np.ndarray,
-    centroids: List[List[float]],
-    bounding_boxes: List[np.ndarray],
-) -> List[Layer]:
-    labels_layer = Labels(
-        data=pred_masks,
-        name=f"{img.name}_masks",
-        scale=img.scale[-2:],
-        translate=img.translate[-2:],
-    )
-
-    points_layer = Points(
-        data=np.asarray(centroids),
-        name=f"{img.name}_centroids",
-        size=30,
-        face_color="yellow",
-        opacity=0.8,
-        scale=img.scale[-2:],
-        translate=img.translate[-2:],
-    )
-
-    boxes_layer = Shapes(
-        data=bounding_boxes,
-        name=f"{img.name}_boxes",
-        shape_type="polygon",
-        edge_color="lime",
-        face_color=[0, 0, 0, 0],
-        edge_width=4,
-        scale=img.scale[-2:],
-        translate=img.translate[-2:],
-    )
-
-    return [labels_layer, points_layer, boxes_layer]
-
-
 def _segment_widget_impl(
     viewer: Viewer,
     DAPI: Image,
@@ -143,7 +106,7 @@ def _segment_widget_impl(
             "bounding_boxes": bounding_boxes,
         }
 
-        segmentation_layers = _get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
+        segmentation_layers = get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
         for layer in segmentation_layers:
             viewer.add_layer(layer)
 

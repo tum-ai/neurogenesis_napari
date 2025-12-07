@@ -8,7 +8,7 @@ import torch
 from napari.layers import Image, Layer, Shapes
 from sklearn.neighbors import NearestCentroid
 
-from neurogenesis_napari._utils import (
+from neurogenesis_napari.widget_utils import (
     get_gray_img,
     crop_stack_resize,
     get_weight_path,
