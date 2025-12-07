@@ -1,6 +1,6 @@
 import pytest
 
-from neurogenesis_napari.widgets._inspect import _extract_cell_patch
+from neurogenesis_napari.widget_utils import _extract_cell_patch
 
 @pytest.mark.parametrize("img", ["sample_czi_ch0", "sample_czi_ch1"], indirect=True)
 def test_extract_cell_path(img, sample_bbox_shapes_layer) -> None:

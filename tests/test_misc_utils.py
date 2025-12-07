@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 from napari.layers import Image
 
-from neurogenesis_napari._utils.geometry import bbox_to_rectangle
-from neurogenesis_napari._utils.image import get_gray_img
-from neurogenesis_napari._utils.model_hub import FILE_MAP, ensure_weights
+from neurogenesis_napari.widget_utils.geometry import bbox_to_rectangle
+from neurogenesis_napari.widget_utils.image import get_gray_img
+from neurogenesis_napari.widget_utils.model_hub import FILE_MAP, ensure_weights
 
 
 @pytest.mark.parametrize(

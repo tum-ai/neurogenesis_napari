@@ -8,6 +8,17 @@ from napari.utils.notifications import show_warning, show_error, show_info
 
 
 def save_layer_bboxes_csv(layer: Shapes) -> None:
+    """Save bounding boxes and labels from a Shapes layer to csv.
+
+    Opens a file dialog for the user to select save location, then exports
+    each cell's bounding box coordinates, dimensions, and label to a CSV file.
+
+    Args:
+        layer (Shapes): Shapes layer containing cell polygons with labels in properties["label"].
+
+    Returns:
+        None
+    """
     labels = list(layer.properties.get("label", []))
     if len(labels) != len(layer.data):
         show_warning("Prediction layer is missing labels or counts don’t match polygons!")

@@ -12,6 +12,17 @@ from qtpy.QtCore import QTimer
 
 
 def get_gray_img(image_layer: Image) -> np.ndarray:
+    """Convert an image layer to grayscale.
+
+    Squeezes singleton dimensions (important for CZI files) and converts
+    RGB/RGBA images to grayscale.
+
+    Args:
+        image_layer (Image): Napari image layer to convert.
+
+    Returns:
+        np.ndarray: 2D grayscale image as float32.
+    """
     img = img_as_float32(image_layer.data)
     # Remove all dimensions of size 1 (especially relevant for czi files)
     img_gray = np.squeeze(img)
@@ -100,6 +111,17 @@ def wire_layer_comboboxes_autorefresh(
 
 
 def image_layer_choices(widget: FunctionGui) -> list[Image]:
+    """Get list of Image layers from the viewer for magicgui choices.
+
+    Retrieves the viewer from the widget's parent or uses the current
+    viewer, then filters layers to return only Image layers.
+
+    Args:
+        widget (FunctionGui): The magicgui widget requesting layer choices.
+
+    Returns:
+        list[Image]: List of Image layers in the viewer, or empty list if no viewer.
+    """
     viewer = getattr(getattr(widget, "parent", None), "viewer", None) or napari.current_viewer()
     if viewer is None:
         return []

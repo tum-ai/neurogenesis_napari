@@ -9,11 +9,11 @@ from napari import Viewer
 
 from neurogenesis_napari.widgets import (
     normalize_and_denoise_widget,
-    segment_and_classify_widget,
     segment_widget,
 )
+from neurogenesis_napari.widget_utils import get_segmentation_layers
 from neurogenesis_napari.widgets.normalize_and_denoise import _normalize_and_denoise_widget_impl
-from neurogenesis_napari.widgets.segment import _segment_widget_impl, _get_segmentation_layers
+from neurogenesis_napari.widgets.segment import _segment_widget_impl
 from neurogenesis_napari.widgets.segment_and_classify import _segment_and_classify_widget_impl
 
 NONE_CASES = [
@@ -99,7 +99,7 @@ def test_normalize_and_denoise_widget(img: Image, make_napari_viewer: Viewer, qt
 def test_get_segmentation_layers(img: Image, sample_segmentation) -> None:
     masks, centroids, boxes = sample_segmentation
 
-    layers = _get_segmentation_layers(
+    layers = get_segmentation_layers(
         img=img,
         pred_masks=masks,
         centroids=centroids,

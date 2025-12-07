@@ -9,7 +9,9 @@ from napari_czifile2 import napari_get_reader
 from napari.qt.threading import create_worker
 from skimage import data
 
-from neurogenesis_napari.widgets.segment_and_classify import PALETTE
+
+from neurogenesis_napari.widget_utils.classification import PALETTE
+
 
 def _czi_channel_params_via_plugin(
     path: Path = Path(__file__).parent / "sample.czi",

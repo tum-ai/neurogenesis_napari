@@ -1,145 +1,36 @@
-import pickle
-from functools import lru_cache, partial
-from typing import List
+from functools import partial
 
-import cv2
-import numpy as np
-import torch
 from magicgui import magic_factory
 from napari import Viewer
 import napari
-from napari.layers import Image, Layer, Shapes
+from napari.layers import Image
 from napari.utils.notifications import (
     show_warning,
     show_error,
 )
-from sklearn.neighbors import NearestCentroid
-
-from neurogenesis_napari._utils import (
+from neurogenesis_napari.widget_utils import (
     ensure_weights,
     get_gray_img,
-    crop_stack_resize,
-    get_weight_path,
     setup_cellpose_log_panel,
     wire_layer_comboboxes_autorefresh,
     image_layer_choices,
     start_progress,
     close_progress,
-)
-from neurogenesis_napari.classification.representation_based.vae import (
-    VAE,
-    generate_latent_representation,
+    load_segmentation,
+    save_segmentation,
+    get_segmentation_layers,
+    attach_saver_dock,
+    attach_edit_widget,
+    attach_inspect_widget,
+    classify,
+    IDX2LBL,
 )
 from neurogenesis_napari.widgets.segment import (
-    _get_segmentation_layers,
     _segment_async,
 )
-from neurogenesis_napari.widgets._edit_prediction import attach_edit_widget
-from neurogenesis_napari.widgets._save_csv import attach_saver_dock
-from neurogenesis_napari.widgets._inspect import attach_inspect_widget
 
-PALETTE = {
-    "Astrocyte": "magenta",
-    "Dead Cell": "gray",
-    "Neuron": "cyan",
-    "OPC": "lime",
-}
-IDX2LBL = {0: "Astrocyte", 1: "Dead Cell", 2: "Neuron", 3: "OPC"}
-PREDICTION_LAYER_NAME = "Predictions"
+
 CLASSIFY_WIDGET_PANEL_KEY = "segment_classify_widget"
-
-
-@lru_cache
-def load_models(vae_wts: str, clf_wts: str) -> tuple[VAE, NearestCentroid]:
-    """Load the pretrained models *once* and cache them.
-
-    Args:
-        vae_wts (str): Path to the ``.pth`` state‑dict of the VAE.
-        clf_wts (str): Path to the pickled scikit‑learn classifier (``.pkl``).
-
-    Returns:
-        Tuple containing the VAE and the classifier instance.
-    """
-    vae = VAE().eval()
-    vae.load_state_dict(torch.load(vae_wts, map_location="cpu"))
-    with open(clf_wts, "rb") as f:
-        clf = pickle.load(f)
-    return vae, clf
-
-
-def classify_patch(patch: np.ndarray, vae: VAE, clf: NearestCentroid) -> str:
-    """Predict the cell type of a *single* 4‑channel patch.
-
-    Args:
-        patch (np.ndarray): Array of shape (C, 224, 224) with values in [0, 1].
-        vae: The pretrained vae.
-        clf: A fitted scikit‑learn classifier.
-
-    Returns:
-        One of {"Astrocyte", "Dead Cell", "Neuron", "OPC"}.
-    """
-    z = generate_latent_representation(patch, vae)
-    return IDX2LBL[int(clf.predict(z)[0])]
-
-
-def classify(
-    DAPI: np.ndarray,
-    BF: np.ndarray,
-    Tuj1: np.ndarray,
-    RFP: np.ndarray,
-    bounding_boxes: List[np.ndarray],
-) -> Layer:
-    """Classify nuclei *polygons* into cell types and return per-class shape layers.
-
-    Args:
-        DAPI (np.ndarray): DAPI channel.
-        Tuj1 (np.ndarray): β‑III‑tubulin channel.
-        RFP (np.ndarray): RFP channel.
-        BF (np.ndarray): Bright‑field channel.
-        bounding_boxes (List[np.ndarray]): List of nucleus polygons in pixel coordinates.
-
-    Returns:
-        A layer containing all prediction polygons.
-    """
-
-    def prep(layer: Image) -> np.ndarray:
-        return cv2.normalize(get_gray_img(layer), None, 0, 1, cv2.NORM_MINMAX, cv2.CV_32F)
-
-    chans = tuple(map(prep, (DAPI, BF, Tuj1, RFP)))
-
-    vae, clf = load_models(
-        str(get_weight_path("vae", "TL_FT_bigvae3.pth")),
-        str(get_weight_path("classifier", "NearestCentroid.pkl")),
-    )
-
-    labels = []
-
-    for bbox in bounding_boxes:
-        patch = crop_stack_resize(chans, bbox)
-        pred = classify_patch(patch, vae, clf)
-        labels.append(pred)
-
-    layer = Shapes(
-        data=bounding_boxes,
-        shape_type="polygon",
-        properties={"label": labels},
-        name=PREDICTION_LAYER_NAME,
-        edge_width=4,
-        face_color=[0, 0, 0, 0],
-        scale=DAPI.scale[-2:],
-        translate=DAPI.translate[-2:],
-        edge_color="label",
-        # TODO: non-determinstic color assignment
-        edge_color_cycle=list(PALETTE.values()),
-        text={
-            "text": "{label}",
-            "size": 5,
-            "anchor": "upper_left",
-            "translation": [0, 0],
-        },
-    )
-
-    return layer
 
 
 def _segment_and_classify_widget_impl(
@@ -189,9 +80,19 @@ def _segment_and_classify_widget_impl(
         show_warning(f"Failed to download model weights: {e}")
         return None
 
-    seg = DAPI.metadata.get("segmentation")
+    seg = None
 
-    if reuse_cached_segmentation and seg is not None:
+    if reuse_cached_segmentation:
+        # check memory
+        seg = DAPI.metadata.get("segmentation")
+
+        # check disk
+        if seg is None:
+            seg = load_segmentation(DAPI, gpu, model_type)
+            if seg is not None:
+                DAPI.metadata["segmentation"] = seg
+
+    if seg is not None:
         bounding_boxes = seg["bounding_boxes"]
 
         if not bounding_boxes:
@@ -226,7 +127,9 @@ def _segment_and_classify_widget_impl(
             "bounding_boxes": bounding_boxes,
         }
 
-        segmentation_layers = _get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
+        save_segmentation(DAPI, pred_masks, centroids, bounding_boxes, gpu, model_type)
+
+        segmentation_layers = get_segmentation_layers(DAPI, pred_masks, centroids, bounding_boxes)
         prediction_layer = classify(DAPI, BF, Tuj1, RFP, bounding_boxes)
         for layer in segmentation_layers + [prediction_layer]:
             viewer.add_layer(layer)

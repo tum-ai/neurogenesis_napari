@@ -7,7 +7,7 @@ from napari import Viewer
 from napari.layers import Image
 from napari.utils.notifications import show_warning, show_error
 
-from neurogenesis_napari._utils import (
+from neurogenesis_napari.widget_utils import (
     get_gray_img,
     log_context,
     setup_cellpose_log_panel,

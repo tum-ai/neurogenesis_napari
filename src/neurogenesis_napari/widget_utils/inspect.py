@@ -5,7 +5,7 @@ from napari import Viewer
 from napari.layers import Shapes, Image
 from napari.utils.notifications import show_warning, show_info
 
-from neurogenesis_napari._utils import crop_stack_resize
+from neurogenesis_napari.widget_utils import crop_stack_resize
 
 # Global dictionary to store inspection state for each viewer
 _inspection_states: Dict[Viewer, Dict[str, Any]] = {}
