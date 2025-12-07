@@ -6,7 +6,7 @@
 # https://github.com/chanzuckerberg/napari-hub/wiki/napari-hub-Plugin-Configuration#configyml
 
 # ─ Basic identity ─────────────────────────────────────────────────────
-display_name: TumAI Histology Toolkit
+display_name: TUM.ai Neurogenesis Toolkit
 summary: |
   One-click colour normalisation, denoising and Cellpose-based nuclear
   segmentation for bright-field or fluorescent histology images.

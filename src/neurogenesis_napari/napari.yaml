@@ -1,5 +1,5 @@
 name: neurogenesis-napari
-display_name: TUM.ai + Helmholtz
+display_name: TUM.ai Neurogenesis Toolkit
 contributions:
   commands:
     - id: neurogenesis-napari.normalize_and_denoise_widget
