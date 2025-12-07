@@ -23,11 +23,11 @@ from neurogenesis_napari.widget_utils import (
     attach_edit_widget,
     attach_inspect_widget,
     classify,
-    IDX2LBL,
 )
 from neurogenesis_napari.widgets.segment import (
     _segment_async,
 )
+from neurogenesis_napari.settings import IDX2LBL
 
 
 CLASSIFY_WIDGET_PANEL_KEY = "segment_classify_widget"

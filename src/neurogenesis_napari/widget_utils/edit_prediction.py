@@ -5,6 +5,7 @@ from napari.layers import Shapes
 from napari.utils.notifications import (
     show_warning,
 )
+from neurogenesis_napari.settings import SHORTCUT_TO_LABEL
 
 
 def _set_label(layer: Shapes, label: str) -> None:
@@ -36,10 +37,10 @@ def add_label_hotkeys(layer: Shapes, idx2lbl: Dict[int, str]) -> None:
     """Bind number keys to assign predefined labels to selected polygons.
 
     Hotkeys:
-        0 → "Astrocyte"
-        1 → "Dead Cell"
-        2 → "Neuron"
-        3 → "OPC"
+        Shift+A → "Astrocyte"
+        Shift+D → "Dead Cell"
+        Shift+N → "Neuron"
+        Shift+O → "OPC"
 
     Pressing a key will call `_set_label` on all currently selected polygons
     in the given Shapes layer.
@@ -51,14 +52,13 @@ def add_label_hotkeys(layer: Shapes, idx2lbl: Dict[int, str]) -> None:
     Returns:
         None
     """
-    # NOTE: maybe the keys should be incremented by one, since 0 is at the other end on the keyboard
-    for key in sorted(idx2lbl.keys()):
-        lbl = idx2lbl[key]
+    # Use the shared shortcut mapping from settings
+    for shortcut, label in SHORTCUT_TO_LABEL.items():
 
-        def _handler(event=None, lbl=lbl) -> None:
+        def _handler(event=None, lbl=label) -> None:
             _set_label(layer, lbl)
 
-        layer.bind_key(str(key), _handler)
+        layer.bind_key(shortcut, _handler)
 
 
 def attach_edit_widget(viewer: Viewer, layer: Shapes, idx2lbl: Dict[int, str]) -> None:
