@@ -22,6 +22,15 @@ def _get_image_hash(image_data: np.ndarray) -> str:
 def _get_sidecar_paths(
     image: Image,
 ) -> Tuple[Optional[Path], Optional[Path]]:
+    """Get paths for segmentation sidecar files.
+
+    Args:
+        image (Image): Napari image layer with source.path attribute.
+
+    Returns:
+        Tuple[Optional[Path], Optional[Path]]: Tuple of (json_path, masks_path).
+            Returns (None, None) if image has no source path.
+    """
     source = image.source.path
 
     if not source:
@@ -39,7 +48,20 @@ def load_segmentation(
     gpu: bool,
     model_type: str,
 ) -> Optional[TSegmentation]:
+    """Load segmentation results from sidecar files if valid.
 
+    Checks that sidecar files exist, image data hasn't changed (via hash),
+    and segmentation parameters match before loading.
+
+    Args:
+        image (Image): Napari image layer to load segmentation for.
+        gpu (bool): GPU setting to match against cached version.
+        model_type (str): Cellpose model type to match against cached version.
+
+    Returns:
+        Optional[TSegmentation]: Dictionary with 'masks', 'centroids', and
+            'bounding_boxes' keys, or None if cache is invalid or missing.
+    """
     json_path, masks_path = _get_sidecar_paths(image)
 
     if not json_path or not masks_path:
@@ -86,6 +108,23 @@ def save_segmentation(
     gpu: bool,
     model_type: str,
 ) -> bool:
+    """Save segmentation results to sidecar files.
+
+    Creates two files alongside the image: a json file with metadata
+    and an npz file with masks and bounding boxes.
+
+    Args:
+        image (Image): Napari image layer being segmented.
+        masks (np.ndarray): Segmentation masks array.
+        centroids (List[List[float]]): List of centroid coordinates.
+        bounding_boxes (List[np.ndarray]): List of bounding box polygons.
+        gpu (bool): Whether GPU was used for segmentation.
+        model_type (str): Cellpose model type used.
+
+    Returns:
+        bool: True if saved successfully, False if image has no source path
+            or saving failed.
+    """
     json_path, masks_path = _get_sidecar_paths(image)
     if not json_path or not masks_path:
         return False
@@ -122,6 +161,20 @@ def get_segmentation_layers(
     centroids: List[List[float]],
     bounding_boxes: List[np.ndarray],
 ) -> List[Layer]:
+    """Create napari layers for displaying segmentation results.
+
+    Creates three layers: masks (Labels), centroids (Points), and
+    bounding boxes (Shapes), all with matching scale and translate.
+
+    Args:
+        img (Image): Reference image layer for naming and spatial properties.
+        pred_masks (np.ndarray): Segmentation masks.
+        centroids (List[List[float]]): Cell centroid coordinates.
+        bounding_boxes (List[np.ndarray]): Cell bounding box polygons.
+
+    Returns:
+        List[Layer]: List of [Labels, Points, Shapes] layers ready to add to viewer.
+    """
     labels_layer = Labels(
         data=pred_masks,
         name=f"{img.name}_masks",
