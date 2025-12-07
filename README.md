@@ -1,6 +1,6 @@
 # TUMai Helmholtz Neurogenesis Napari Plugin
 
-[![License MIT](https://img.shields.io/pypi/l/neurogenesis-napari.svg?color=green)](LICENSE)
+[![License MIT](https://img.shields.io/pypi/l/neurogenesis-napari.svg?color=green)](https://github.com/tum-ai/neurogenesis_napari/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/neurogenesis-napari.svg?color=green)](https://pypi.org/project/neurogenesis-napari)
 [![Python Version](https://img.shields.io/pypi/pyversions/neurogenesis-napari.svg?color=green)](https://python.org)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/neurogenesis-napari)](https://napari-hub.org/plugins/neurogenesis-napari)
@@ -26,7 +26,7 @@ pip install neurogenesis-napari
 Or install through napari:
 1. Open napari
 2. Go to `Plugins` → `Install/Uninstall Plugins`
-3. Search for **"TumAI Histology Toolkit"**
+3. Search for **"TumAI Neurogenesis Toolkit"**
 4. Click Install
 
 ### Basic Usage
